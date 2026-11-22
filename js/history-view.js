@@ -139,29 +139,27 @@ function createPokerHistoryView(root, history) {
   }
 
   return function render(state) {
-    const { entries: nextEntries, filename, directoryName, fileState, choosing, storageWarning, canChooseFolder, automatic } = state;
+    const { entries: nextEntries, filename, directoryName, fileState, choosing, storageWarning, canChooseFolder } = state;
     if (nextEntries !== entries || !list.hasChildNodes()) {
       entries = nextEntries;
       renderEntries();
     }
     folder.hidden = !canChooseFolder;
     resume.hidden = !directoryName || fileState === 'active' || fileState === 'off';
-    resume.textContent = automatic ? 'Ponów zapis' : 'Wznów zapis';
     folder.disabled = choosing;
     resume.disabled = choosing;
     download.disabled = entries.length === 0;
 
     const messages = {
-      off: 'Uruchom grę przez start-poker-lab.cmd, aby automatycznie zapisywać historię w folderze Data.',
+      off: storageWarning ? 'Magazyn historii w przeglądarce jest niedostępny. Możesz pobrać JSON.'
+        : 'Historia zapisuje się automatycznie w tej przeglądarce.',
       active: `Automatyczny zapis do ${directoryName}/${filename}.`,
-      permission: 'Chrome prosi o ponowny dostęp do folderu zapisu.',
-      invalid: automatic ? `Plik Data/${filename} ma nieobsługiwany format.`
-        : `Plik ${filename} ma inny format. Wybierz inny folder.`,
-      error: automatic ? 'Zapis do folderu Data się nie powiódł. Sprawdź, czy lokalny serwer działa lub pobierz JSON.'
-        : directoryName ? 'Zapis do pliku się nie powiódł. Wznów zapis lub pobierz JSON.'
+      permission: 'Przeglądarka prosi o ponowny dostęp do folderu zapisu.',
+      invalid: `Plik ${filename} ma inny format. Wybierz inny folder.`,
+      error: directoryName ? 'Zapis do pliku się nie powiódł. Wznów zapis lub pobierz JSON.'
         : 'Nie udało się otworzyć folderu. Historię możesz pobrać jako plik JSON.'
     };
-    const status = storageWarning && !(automatic && fileState === 'active')
+    const status = storageWarning && fileState !== 'off'
       ? ' Magazyn historii w przeglądarce jest niedostępny.' : '';
     find('#history-status').textContent = `${messages[fileState]}${status}`;
   };

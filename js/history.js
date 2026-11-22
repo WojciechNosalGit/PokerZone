@@ -33,7 +33,7 @@ const createPokerHistory = (() => {
 
   function decode(text) {
     if (!text.trim()) return [];
-    const document = JSON.parse(text);
+    const document = JSON.parse(text.trim());
     const isAmount = amount => Number.isSafeInteger(amount) && amount >= 0;
     const isCard = card => Number.isInteger(card?.r) && card.r >= 2 && card.r <= 14
       && ['♠', '♥', '♦', '♣'].includes(card.s);
@@ -70,19 +70,16 @@ const createPokerHistory = (() => {
   return function createHistory(onChange) {
     const database = openDatabase().catch(() => null);
     const hands = new Map();
-    const automatic = window.location?.protocol === 'http:' && window.location.hostname === '127.0.0.1';
-    const canChooseFolder = !automatic && typeof window.showDirectoryPicker === 'function';
+    const canChooseFolder = typeof window.showDirectoryPicker === 'function';
     let entries = [];
     let queue = Promise.resolve();
     let directory = null;
     let fileState = 'off';
     let storageWarning = false;
     let choosing = false;
-    let savedOnServer = null;
 
     function publish() {
-      const directoryName = automatic ? 'Data' : directory?.name;
-      onChange({ entries, filename, fileState, directoryName, automatic, canChooseFolder, storageWarning, choosing });
+      onChange({ entries, filename, fileState, directoryName: directory?.name, canChooseFolder, storageWarning, choosing });
     }
 
     function merge(records) {
@@ -116,37 +113,6 @@ const createPokerHistory = (() => {
     const saveRecords = records => persist('hands', store => {
       for (const record of records) store.put(record);
     });
-
-    async function historyRequest(options) {
-      const response = await fetch('/api/history', options);
-      if (response.status === 409) throw new SyntaxError('Nieobsługiwany format historii.');
-      if (!response.ok) throw new Error(`Zapis historii zwrócił kod ${response.status}.`);
-      return response;
-    }
-
-    async function syncServer() {
-      try {
-        if (!savedOnServer) {
-          const response = await historyRequest();
-          const remote = decode(await response.text());
-          const imported = merge(remote);
-          if (imported.length) await saveRecords(imported);
-          savedOnServer = new Set(remote.map(hand => hand.id));
-        }
-        const pending = [...hands.values()].filter(hand => !savedOnServer.has(hand.id));
-        if (pending.length) {
-          await historyRequest({
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: encode(pending)
-          });
-          for (const hand of pending) savedOnServer.add(hand.id);
-        }
-        fileState = 'active';
-      } catch (error) {
-        fileState = error instanceof SyntaxError ? 'invalid' : 'error';
-      }
-    }
 
     async function syncFile() {
       const sync = async () => {
@@ -185,13 +151,11 @@ const createPokerHistory = (() => {
           useStore(db, 'settings', 'readonly', store => store.get(directoryKey))
         ]);
         merge(saved);
-        if (!automatic) directory = previousDirectory || null;
+        directory = previousDirectory || null;
       } catch {
         storageWarning = true;
       }
-      if (automatic) {
-        await syncServer();
-      } else if (directory) {
+      if (directory) {
         try {
           fileState = 'permission';
           if (await directory.queryPermission(writeAccess) === 'granted') await syncFile();
@@ -207,20 +171,7 @@ const createPokerHistory = (() => {
       publish();
       return enqueue(async () => {
         await saveRecords([record]);
-        await syncStorage();
-        publish();
-      });
-    }
-
-    async function syncStorage() {
-      if (automatic) await syncServer();
-      else if (directory && fileState === 'active') await syncFile();
-    }
-
-    function resume() {
-      if (!automatic) return connect(false);
-      return enqueue(async () => {
-        await syncServer();
+        if (directory && fileState === 'active') await syncFile();
         publish();
       });
     }
@@ -267,12 +218,12 @@ const createPokerHistory = (() => {
       return enqueue(async () => {
         const imported = merge(records);
         if (imported.length) await saveRecords(imported);
-        await syncStorage();
+        if (directory && fileState === 'active') await syncFile();
         publish();
         return imported.length;
       });
     }
 
-    return { add, chooseFolder: () => connect(true), resume, download, importFile };
+    return { add, chooseFolder: () => connect(true), resume: () => connect(false), download, importFile };
   };
 })();
