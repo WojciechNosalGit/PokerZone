@@ -1,0 +1,15 @@
+/screeny/
+/Data/*
+!/Data/.gitkeep
+
+__pycache__/
+*.py[cod]
+/.venv/
+
+# Lokalne materiały niewykorzystywane przez grę
+/assets/audio/deck hits.wav
+/assets/audio/shuffle.wav
+/assets/images/deck-cyberpunk-faces.png
+/assets/images/deck-emblems.png
+/assets/images/poker-table.png
+/assets/images/poker-table-club.png

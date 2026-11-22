@@ -1,0 +1,79 @@
+[data-card-back="four-color"] .card.back {
+  border-color: #86a5af;
+  background:
+    repeating-conic-gradient(from 45deg, #315569 0 25%, #243b4c 25% 50%) center / 7px 7px,
+    #243b4c;
+  box-shadow: inset 0 0 0 2px #1c2f40, inset 0 0 0 3px #83a4ad, 0 2px 4px #0006;
+}
+
+[data-card-back="four-color"] .card.back:not(.deal-deck) {
+  position: relative;
+}
+
+[data-card-back="four-color"] .card.back::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 39%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  rotate: 45deg;
+  border: 1px solid #e0e8dd;
+  border-radius: 2px;
+  background: conic-gradient(#6fa4cc 0 25%, #66ad89 25% 50%, #3f4b60 50% 75%, #ca7682 75% 100%);
+  box-shadow: 0 0 0 2px #1c2f40, 1px 1px 5px #0008;
+}
+
+[data-card-back="noir-gold"] .card.back {
+  border-color: #ad925a;
+  background:
+    repeating-linear-gradient(45deg, #111e29 0 4px, #2c3a43 4px 7px, #a5854d 7px 8px);
+  box-shadow: inset 0 0 0 2px #1a2833, inset 0 0 0 3px #b89a5f;
+}
+
+[data-card-back="gothic"] .card.back {
+  border-color: #a69985;
+  background:
+    repeating-linear-gradient(45deg, #b49c7c33 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, #b49c7c33 0 1px, transparent 1px 5px),
+    radial-gradient(ellipse, #4e4357, #242532);
+  box-shadow: inset 0 0 0 2px #282634, inset 0 0 0 3px #ad9b80;
+}
+
+[data-card-back="woodcut"] .card.back {
+  border-color: #9e6c43;
+  color: #341f19;
+  background:
+    repeating-linear-gradient(94deg, #75482425 0 1px, transparent 1px 4px, #ffe1ae35 4px 5px, transparent 5px 9px),
+    linear-gradient(132deg, #a5683e, #e3b782 37%, #bd8656);
+}
+
+[data-card-back="woodcut"] .card.back {
+  box-shadow: inset 0 0 0 2px #b98654, inset 0 0 0 3px #754523, inset 0 0 8px #6b3d28;
+}
+
+[data-card-back="cyberpunk"] .card.back {
+  border-color: #60778c;
+  background:
+    linear-gradient(100deg, #aa3778, #ff57ac) right top / 43% 1px no-repeat,
+    linear-gradient(#ff57ac, #482949) right top / 1px 25% no-repeat,
+    linear-gradient(90deg, #ff57ac, #bb438e) left bottom / 43% 1px no-repeat,
+    linear-gradient(#305d78, #29cadc) left bottom / 1px 25% no-repeat,
+    repeating-linear-gradient(60deg, #6ac1df0a 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at center, #182733, #080e16 86%);
+  box-shadow: inset 0 0 0 2px #121e2a, inset 0 0 0 3px #477080, 0 2px 5px #0009;
+}
+
+[data-card-back="cyberpunk"] .card.back:not(.deal-deck) {
+  position: relative;
+}
+
+[data-card-back="cyberpunk"] .card.back::after {
+  content: "";
+  position: absolute;
+  inset: 50% 4% auto;
+  translate: 0 -50%;
+  aspect-ratio: 1;
+  background: url("../assets/images/deck-cyberpunk.png") 50% 100% / 300% 200% no-repeat;
+}
