@@ -2,6 +2,7 @@
 
 function createPokerEffects(root) {
   const sounds = {
+    uiClick: new Audio('assets/audio/ui-click.wav'),
     cards: new Audio('assets/audio/cards.wav'),
     shuffle: new Audio('assets/audio/shuffle-cue.wav'),
     dealHit: new Audio('assets/audio/deal-hit.wav'),
@@ -23,6 +24,7 @@ function createPokerEffects(root) {
     sound.preload = 'auto';
     sound.volume = 0.55;
   }
+  sounds.uiClick.volume = 0.24;
   let enabled = true;
   let previous = null;
 
@@ -39,6 +41,13 @@ function createPokerEffects(root) {
     });
   }
 
+  // Przechwycenie kliknięcia działa także podczas wymiany kontrolek przy każdym ruchu.
+  document.addEventListener('click', event => {
+    if (!event.isTrusted) return;
+    const control = event.target.closest('button, a[href], summary, select, input:not([type="hidden"]), .felt[data-runout]');
+    if (control && !control.matches(':disabled, [aria-disabled="true"]')) play('uiClick');
+  }, true);
+
   function playOnTable(name, stage, delay) {
     if (delay > 0) {
       setTimeout(() => { if (stage.isConnected) play(name); }, delay);
@@ -49,7 +58,7 @@ function createPokerEffects(root) {
 
   function toggleSound() {
     enabled = !enabled;
-    if (enabled) play('dealHit');
+    if (enabled) play('uiClick');
     else for (const sound of Object.values(sounds)) sound.pause();
     return enabled;
   }

@@ -7,7 +7,7 @@ const pokerGame = (() => {
     { smallBlind: 10, bigBlind: 20 }
   ];
   const streetDelay = 450;
-  const nextHandDelay = 5000;
+  const nextHandDelay = 3000;
   const dealTiming = Object.freeze({ shuffle: 520, flight: 195, interval: 60, settle: 65 });
   const runoutTiming = Object.freeze({ revealDelay: 220, firstStreet: 1300, nextStreet: 950, flight: 440, interval: 100 });
   const bettingStreets = ['preflop', 'flop', 'turn', 'river'];
@@ -103,8 +103,7 @@ const pokerGame = (() => {
     let state = null;
     let paused = false;
     let dealTimer = null;
-    let heroName;
-    let reservedAvatar;
+    let heroProfile;
     const human = () => state.players[0];
     const pot = () => state.players.reduce((total, player) => total + player.contributed, 0);
     const contestablePot = (player, price) => state.players.reduce(
@@ -122,12 +121,19 @@ const pokerGame = (() => {
     }
 
     function setHeroProfile({ name, avatar }) {
-      heroName = name;
-      reservedAvatar = pokerAvatars.isPreset(avatar) ? avatar : undefined;
+      heroProfile = { name, avatar: pokerAvatars.isPreset(avatar) || pokerAvatars.isUpload(avatar) ? avatar : '' };
       if (state) {
-        human().name = name;
-        pokerAvatars.fillSeatAvatars(state.players, reservedAvatar);
+        applyHeroProfile();
+        pokerAvatars.fillSeatAvatars(state.players);
       }
+    }
+
+    function applyHeroProfile() {
+      if (!heroProfile) return;
+      const player = human();
+      player.name = heroProfile.name;
+      if (heroProfile.avatar || player.avatarSelected) player.avatar = heroProfile.avatar || null;
+      player.avatarSelected = Boolean(heroProfile.avatar);
     }
 
     function chipIn(player, amount) {
@@ -170,8 +176,8 @@ const pokerGame = (() => {
         || !blinds) throw new RangeError('Nieprawidłowe ustawienia stołu.');
       if (state?.timer) clearTimeout(state.timer);
       state = createState(playerCount, blinds);
-      if (heroName !== undefined) human().name = heroName;
-      pokerAvatars.fillSeatAvatars(state.players, reservedAvatar);
+      applyHeroProfile();
+      pokerAvatars.fillSeatAvatars(state.players);
       addLog({ kind: 'notice', text: `Nowa sesja · ${playerCount} graczy · NL ${blinds.smallBlind}/${blinds.bigBlind} · ${START_STACK} żetonów na gracza` });
       startHand();
     }
@@ -193,13 +199,13 @@ const pokerGame = (() => {
 
     function saveSession() {
       const { timer, epoch, dealing, runoutFrom, ...snapshot } = state;
-      return JSON.stringify({ version: 1, snapshot });
+      return JSON.stringify({ version: 2, snapshot });
     }
 
     function restoreSession(serialized) {
       const { version, snapshot } = JSON.parse(serialized);
       const blinds = stakes.find(stake => stake.bigBlind === (snapshot?.bigBlind ?? stakes[0].bigBlind));
-      if (version !== 1 || typeof snapshot?.sessionId !== 'string'
+      if ((version !== 1 && version !== 2) || typeof snapshot?.sessionId !== 'string'
         || !['betting', 'finished', 'gameover'].includes(snapshot.phase)
         || !Array.isArray(snapshot.players) || snapshot.players.length < minPlayers || snapshot.players.length > maxPlayers
         || !blinds || (snapshot.smallBlind != null && snapshot.smallBlind !== blinds.smallBlind)
@@ -241,8 +247,15 @@ const pokerGame = (() => {
       dealTimer = null;
       const { level, ...saved } = snapshot;
       state = { ...saved, ...blinds, dealing: false, runoutFrom: null, timer: null, epoch: (state?.epoch ?? 0) + 1 };
-      if (heroName !== undefined) human().name = heroName;
-      pokerAvatars.fillSeatAvatars(state.players, reservedAvatar);
+      const hero = human();
+      // Starszy zapis trzymał wybrany awatar gracza osobno, w ustawieniach profilu.
+      if (version === 1 && heroProfile?.avatar) {
+        hero.avatar = heroProfile.avatar;
+        hero.avatarSelected = true;
+      } else {
+        hero.avatarSelected = hero.avatarSelected === true && (pokerAvatars.isPreset(hero.avatar) || pokerAvatars.isUpload(hero.avatar));
+      }
+      pokerAvatars.fillSeatAvatars(state.players);
       assignPositions(state);
       if (state.phase === 'betting') {
         state.handId = createId();

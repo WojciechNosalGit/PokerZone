@@ -1,9 +1,9 @@
 'use strict';
 
-function createPokerProfile(dialog, onSave, currentAvatar = () => null) {
+function createPokerProfile(dialog, onSave) {
   const storageKey = 'poker-lab-player-profile';
   const normalizeName = value => (typeof value === 'string' ? value.trim().slice(0, 24) : '') || 'Ty';
-  const { groups, isPreset, isUpload, setPreset } = pokerAvatars;
+  const { groups, isPreset, isUpload, setPreset, setAvatar } = pokerAvatars;
   const genderLabels = { male: 'męski', female: 'żeński', neutral: 'neutralny' };
   const form = dialog.querySelector('#profile-form');
   const name = dialog.querySelector('#profile-name');
@@ -27,6 +27,7 @@ function createPokerProfile(dialog, onSave, currentAvatar = () => null) {
   }
 
   let draftAvatar = '';
+  let randomAvatar = null;
   let upload = 0;
 
   const choices = groups.flatMap(({ label, presets }) => {
@@ -58,10 +59,7 @@ function createPokerProfile(dialog, onSave, currentAvatar = () => null) {
   }
 
   function updatePreview() {
-    const uploaded = isUpload(draftAvatar);
-    setPreset(preview, draftAvatar || currentAvatar());
-    preview.classList.toggle('custom-avatar', uploaded);
-    preview.style.setProperty('--profile-avatar', uploaded ? `url("${draftAvatar}")` : 'none');
+    setAvatar(preview, draftAvatar || randomAvatar);
     random.disabled = !draftAvatar;
     for (const button of choices) button.setAttribute('aria-pressed', String(button.dataset.avatarPreset === draftAvatar));
   }
@@ -75,16 +73,18 @@ function createPokerProfile(dialog, onSave, currentAvatar = () => null) {
     updatePreview();
   }
 
-  function open() {
+  function open(player) {
     if (dialog.open) return;
     upload++;
-    name.value = profile.name;
+    name.value = player?.name ?? profile.name;
     file.value = '';
-    draftAvatar = profile.avatar;
+    draftAvatar = player ? (player.avatarSelected ? player.avatar : '') : profile.avatar;
+    randomAvatar = player && !player.avatarSelected ? player.avatar : null;
     save.disabled = false;
     showStatus();
     updatePreview();
     dialog.showModal();
+    form.scrollTop = 0;
   }
 
   async function avatarThumbnail(selectedFile) {
@@ -143,7 +143,9 @@ function createPokerProfile(dialog, onSave, currentAvatar = () => null) {
     onSave(profile);
     dialog.close();
   });
-  dialog.querySelector('#close-profile').addEventListener('click', () => dialog.close());
+  for (const button of dialog.querySelectorAll('#cancel-profile, #close-profile')) {
+    button.addEventListener('click', () => dialog.close());
+  }
 
   return { open, current: () => profile };
 }

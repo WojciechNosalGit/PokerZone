@@ -12,7 +12,7 @@ function createPokerHistoryView(root, history) {
 
   root.innerHTML = `
     <div class="history-header">
-      <h2 id="hand-history-title">Moje rozdania</h2>
+      <h2 id="hand-history-title">Historia</h2>
       <div class="history-buttons">
         <button class="reset" type="button" id="history-folder" hidden>Wybierz folder zapisu</button>
         <button class="reset" type="button" id="history-resume" hidden>Wznów zapis</button>

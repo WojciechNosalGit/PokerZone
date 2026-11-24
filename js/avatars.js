@@ -53,25 +53,25 @@ const pokerAvatars = (() => {
     else delete element.dataset.avatarPreset;
   }
 
-  function fillSeatAvatars(players, reserved) {
-    const used = new Set();
-    const missing = [];
-    for (const player of players) {
-      const gender = genderForName(player.name);
-      const avatarGender = presetGenders.get(player.avatar);
-      if (!avatarGender || (gender && avatarGender !== gender) || used.has(player.avatar)) {
-        missing.push({ player, gender });
-        continue;
-      }
-      used.add(player.avatar);
-    }
+  function setAvatar(element, value) {
+    setPreset(element, value);
+    const uploaded = isUpload(value);
+    element.classList.toggle('custom-avatar', uploaded);
+    if (uploaded) element.style.setProperty('--profile-avatar', `url("${value}")`);
+    else element.style.removeProperty('--profile-avatar');
+  }
+
+  function fillSeatAvatars(players) {
+    const missing = players.filter(player => !isPreset(player.avatar) && !(player.id === 0 && isUpload(player.avatar)));
     if (!missing.length) return;
-    const available = pokerCards.shuffled([...presetGenders.keys()].filter(avatar => avatar !== reserved && !used.has(avatar)));
-    for (const { player, gender } of missing) {
+    const used = new Set(players.map(player => player.avatar));
+    const available = pokerCards.shuffled([...presetGenders.keys()].filter(avatar => !used.has(avatar)));
+    for (const player of missing) {
+      const gender = genderForName(player.name);
       const index = available.findIndex(avatar => !gender || presetGenders.get(avatar) === gender);
       player.avatar = index === -1 ? null : available.splice(index, 1)[0];
     }
   }
 
-  return { groups, isPreset, isUpload, setPreset, fillSeatAvatars };
+  return { groups, isPreset, isUpload, setPreset, setAvatar, fillSeatAvatars };
 })();

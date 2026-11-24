@@ -1,4 +1,4 @@
-[data-card-back="four-color"] .card.back {
+:is([data-card-back="four-color"] .card.back:not([data-back-preview]), .card.back[data-back-preview="four-color"]) {
   border-color: #86a5af;
   background:
     repeating-conic-gradient(from 45deg, #315569 0 25%, #243b4c 25% 50%) center / 7px 7px,
@@ -6,11 +6,11 @@
   box-shadow: inset 0 0 0 2px #1c2f40, inset 0 0 0 3px #83a4ad, 0 2px 4px #0006;
 }
 
-[data-card-back="four-color"] .card.back:not(.deal-deck) {
+:is([data-card-back="four-color"] .card.back:not([data-back-preview]), .card.back[data-back-preview="four-color"]):not(.deal-deck) {
   position: relative;
 }
 
-[data-card-back="four-color"] .card.back::before {
+:is([data-card-back="four-color"] .card.back:not([data-back-preview]), .card.back[data-back-preview="four-color"])::before {
   content: "";
   position: absolute;
   top: 50%;
@@ -25,14 +25,14 @@
   box-shadow: 0 0 0 2px #1c2f40, 1px 1px 5px #0008;
 }
 
-[data-card-back="noir-gold"] .card.back {
+:is([data-card-back="noir-gold"] .card.back:not([data-back-preview]), .card.back[data-back-preview="noir-gold"]) {
   border-color: #ad925a;
   background:
     repeating-linear-gradient(45deg, #111e29 0 4px, #2c3a43 4px 7px, #a5854d 7px 8px);
   box-shadow: inset 0 0 0 2px #1a2833, inset 0 0 0 3px #b89a5f;
 }
 
-[data-card-back="gothic"] .card.back {
+:is([data-card-back="gothic"] .card.back:not([data-back-preview]), .card.back[data-back-preview="gothic"]) {
   border-color: #a69985;
   background:
     repeating-linear-gradient(45deg, #b49c7c33 0 1px, transparent 1px 5px),
@@ -41,19 +41,16 @@
   box-shadow: inset 0 0 0 2px #282634, inset 0 0 0 3px #ad9b80;
 }
 
-[data-card-back="woodcut"] .card.back {
+:is([data-card-back="woodcut"] .card.back:not([data-back-preview]), .card.back[data-back-preview="woodcut"]) {
   border-color: #9e6c43;
   color: #341f19;
   background:
     repeating-linear-gradient(94deg, #75482425 0 1px, transparent 1px 4px, #ffe1ae35 4px 5px, transparent 5px 9px),
     linear-gradient(132deg, #a5683e, #e3b782 37%, #bd8656);
-}
-
-[data-card-back="woodcut"] .card.back {
   box-shadow: inset 0 0 0 2px #b98654, inset 0 0 0 3px #754523, inset 0 0 8px #6b3d28;
 }
 
-[data-card-back="cyberpunk"] .card.back {
+:is([data-card-back="cyberpunk"] .card.back:not([data-back-preview]), .card.back[data-back-preview="cyberpunk"]) {
   border-color: #60778c;
   background:
     linear-gradient(100deg, #aa3778, #ff57ac) right top / 43% 1px no-repeat,
@@ -65,11 +62,11 @@
   box-shadow: inset 0 0 0 2px #121e2a, inset 0 0 0 3px #477080, 0 2px 5px #0009;
 }
 
-[data-card-back="cyberpunk"] .card.back:not(.deal-deck) {
+:is([data-card-back="cyberpunk"] .card.back:not([data-back-preview]), .card.back[data-back-preview="cyberpunk"]):not(.deal-deck) {
   position: relative;
 }
 
-[data-card-back="cyberpunk"] .card.back::after {
+:is([data-card-back="cyberpunk"] .card.back:not([data-back-preview]), .card.back[data-back-preview="cyberpunk"])::after {
   content: "";
   position: absolute;
   inset: 50% 4% auto;
