@@ -9,11 +9,10 @@ const pokerView = (() => {
   const formatPercent = new Intl.NumberFormat('pl-PL', { style: 'percent', maximumFractionDigits: 0 }).format;
   const formatWinRate = new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'exceptZero' }).format;
   const formatBigBlinds = value => `${value.toLocaleString('pl-PL', { maximumFractionDigits: 2 })} BB`;
-  const newGameDelay = 3000;
+  const defaultRaiseBigBlinds = 3;
   const suitNames = { '♥': 'hearts', '♠': 'spades', '♦': 'diamonds', '♣': 'clubs' };
   const rankLabel = rank => ({ 14: 'A', 13: 'K', 12: 'Q', 11: 'J' })[rank] ?? String(rank);
   const analysisPreference = 'poker-lab-show-analysis';
-  const avatarHues = [38, 164, 208, 265, 321, 145, 191, 25];
   const avatarActionNames = new Map([['check', 'Check'], ['call', 'Call'], ['bet', 'Bet'], ['raise', 'Raise']]);
   const positionNames = {
     BTN: 'Dealer / Button', SB: 'Small Blind', BB: 'Big Blind', 'BTN / SB': 'Dealer / Small Blind',
@@ -42,7 +41,7 @@ const pokerView = (() => {
     const label = player.name;
     const plate = seat.querySelector('.seat-name');
     plate.textContent = label;
-    plate.title = label;
+    plate.dataset.tooltip = label;
     seat.setAttribute('aria-label', `Miejsce gracza ${label}`);
     seat.querySelector('.pocket-cards')?.setAttribute('aria-label', `Karty gracza ${label}`);
   }
@@ -84,6 +83,22 @@ const pokerView = (() => {
     return `<span class="chip-pile" aria-hidden="true">${stacks.join('')}</span>`;
   }
 
+  const wagerChipPositions = [
+    [-0.47, -0.35], [0.45, 0.29], [-1.41, 0.34], [1.43, -0.32],
+    [0.49, -0.38], [-0.49, 0.39], [-1.43, -0.32], [1.42, 0.36]
+  ];
+
+  function chipScatterHTML(chips) {
+    const capacity = wagerChipPositions.length;
+    const overflow = Math.max(0, chips.length - capacity);
+    const discs = wagerChipPositions.slice(0, chips.length).map(([x, y], slot) => {
+      // Przy większej stawce zostaw na filcu pierwsze żetony i te dorzucone ostatnio.
+      const index = slot < capacity / 2 ? slot : slot + overflow;
+      return `<span class="wager-chip" data-chip-index="${index}" style="--chip-x:${x};--chip-y:${y}"><span class="chip-disc" data-denomination="${chips[index]}"></span></span>`;
+    });
+    return `<span class="chip-scatter" aria-hidden="true">${discs.join('')}</span>`;
+  }
+
   function actionLabelHTML(action, className = 'action-label') {
     return action ? `<span class="${className}" data-action="${escapeHTML(action.kind)}">${escapeHTML(action.text)}</span>` : '';
   }
@@ -100,30 +115,31 @@ const pokerView = (() => {
   }
 
   function tableSeatHTML(player, state) {
-    const amount = player.bet;
+    const hero = player.id === 0;
     const participating = player.hand.length === 2;
+    if (!hero && !participating) return '';
+
+    const amount = player.bet;
     const allIn = participating && !player.folded && player.allIn;
     const turn = state.phase === 'betting' && !state.dealing && state.actor === player.id;
-    const hero = player.id === 0;
     const preset = pokerAvatars.isPreset(player.avatar) ? ` data-avatar-preset="${player.avatar}"` : '';
-    const portrait = `<span class="seat-avatar"${preset} style="--avatar-hue:${avatarHues[player.id]}" aria-hidden="true"></span>`;
+    const portrait = `<span class="seat-avatar"${preset} aria-hidden="true"></span>`;
     const avatarControl = hero
-      ? `<button type="button" id="table-profile" class="hero-profile" aria-label="Twój profil" aria-haspopup="dialog" aria-controls="player-profile">
-         ${portrait}<span class="hero-profile-label" aria-hidden="true">Profil</span>
+      ? `<button type="button" id="table-profile" class="hero-profile" aria-label="Twój profil" aria-haspopup="dialog" aria-controls="player-profile" data-tooltip="Profil">
+         ${portrait}<span class="zone-tooltip hero-profile-label" aria-hidden="true">Profil</span>
        </button>`
       : portrait;
-    const seatStatus = !participating ? 'seat-out' : player.folded ? 'spot-folded' : 'spot-active';
+    const seatStatus = player.folded ? 'spot-folded' : 'spot-active';
     const position = seatPositions[state.players.length][player.id];
     const label = escapeHTML(player.name);
     const positionLabel = player.position
-      ? `<abbr title="${escapeHTML(positionNames[player.position] ?? player.position)}">${escapeHTML(player.position)}</abbr>`
+      ? `<abbr tabindex="0" data-tooltip="${escapeHTML(positionNames[player.position] ?? player.position)}">${escapeHTML(player.position)}</abbr>`
       : '';
-    let action = player.folded || player.lastAction?.kind === 'blind' ? null : player.lastAction;
-    if (!participating) action = { kind: 'out', text: 'Poza grą' };
+    const action = player.folded || player.lastAction?.kind === 'blind' ? null : player.lastAction;
     const avatarAction = !allIn && avatarActionNames.get(action?.kind);
     const allInMarker = allIn ? '<span class="all-in-badge"><span class="all-in-suit" aria-hidden="true">♠</span>All-in</span>' : '';
     const wager = amount > 0
-      ? `<div class="spot-chips${allIn ? ' all-in-wager' : ''}" role="group" aria-label="Stawka w obecnej rundzie: ${money(amount)} żetonów">${chipPileHTML(player.betChips)}<strong>${money(amount)}</strong>${allInMarker}</div>`
+      ? `<div class="spot-chips${allIn ? ' all-in-wager' : ''}" role="group" aria-label="Stawka w obecnej rundzie: ${money(amount)} żetonów">${chipScatterHTML(player.betChips)}<strong>${money(amount)}</strong>${allInMarker}</div>`
       : allInMarker;
     const dealer = player.id === state.dealer;
     return `<section class="table-seat ${seatClasses[position]}" data-seat="${player.id}" aria-label="Miejsce gracza ${label}">
@@ -131,7 +147,7 @@ const pokerView = (() => {
      ${pocketCardsHTML(player, state)}
      <div class="seat-info">
        <div class="seat-details">
-         <div class="seat-name" title="${label}">${label}</div>
+         <div class="seat-name" data-tooltip="${label}">${label}</div>
          <div class="money">${money(player.stack)}</div>
        </div>
        ${avatarAction ? actionLabelHTML({ kind: action.kind, text: avatarAction }, 'action-label avatar-action') : ''}
@@ -141,13 +157,14 @@ const pokerView = (() => {
      <div class="seat-action">${allIn || avatarAction ? '' : actionLabelHTML(action)}</div>
    </div>
    ${wager ? `<div class="seat-wager">${wager}</div>` : ''}
-   ${dealer ? '<div class="seat-role-markers"><span class="position-badge pos-d" title="Dealer / button">D</span></div>' : ''}
+   ${dealer ? '<div class="seat-role-markers"><span class="position-badge pos-d" tabindex="0" data-tooltip="Dealer / button">D</span></div>' : ''}
   </section>`;
   }
 
   function centerPotHTML(amount, chips, phase) {
-    return `<div class="pot-display" role="group" aria-label="Pula ${money(amount)} żetonów">
-   <div class="pot-chips${phase === 'betting' ? '' : ' pot-chips-settled'}" aria-hidden="true">${chipPileHTML(chips, 4)}</div>
+    const settled = phase !== 'betting';
+    return `<div class="pot-display${settled ? ' pot-display-settled' : ''}" role="group" aria-label="Pula ${money(amount)} żetonów">
+   <div class="pot-chips${settled ? ' pot-chips-settled' : ''}" aria-hidden="true">${chipPileHTML(chips, 4)}</div>
    <span class="pot-label" aria-hidden="true">Pula</span>
    <strong class="pot-value">${money(amount)}</strong>
   </div>`;
@@ -177,7 +194,7 @@ const pokerView = (() => {
     for (const outline of button.querySelectorAll('.next-hand-outline path')) outline.setAttribute('d', path);
   }
 
-  function controlsHTML(state, pot, min, outgoing, returning, preferredBigBlinds) {
+  function controlsHTML(state, pot, min, outgoing, returning) {
     const { smallBlind, bigBlind } = state;
     const player = state.players[0];
     const active = state.phase === 'betting' && player.hand.length === 2 && !player.folded && !player.allIn;
@@ -186,22 +203,19 @@ const pokerView = (() => {
     const max = player.bet + player.stack;
     const canRaise = canAct && player.canRaise && max > state.currentBet;
     const lowerLimit = Math.min(min, max);
-    const sliderMax = max - (max - lowerLimit) % smallBlind;
-    const blindMin = Math.min(max, Math.ceil(lowerLimit / smallBlind) * smallBlind);
-    const blindMax = Math.max(blindMin, Math.floor(max / smallBlind) * smallBlind);
-    const preferredAmount = Math.round(preferredBigBlinds * bigBlind / smallBlind) * smallBlind;
+    const target = Math.min(max, Math.max(lowerLimit, defaultRaiseBigBlinds * bigBlind));
+    const alignedLimits = lowerLimit % smallBlind === 0 && max % smallBlind === 0;
+    const chipRange = outgoing?.slider ?? { min: lowerLimit, max, step: alignedLimits ? smallBlind : 'any', value: target };
     const blindRange = outgoing?.blindSlider ?? {
-      min: blindMin / bigBlind,
-      max: blindMax / bigBlind,
-      step: smallBlind / bigBlind,
-      value: Math.max(blindMin, Math.min(blindMax, preferredAmount)) / bigBlind
+      min: lowerLimit / bigBlind,
+      max: max / bigBlind,
+      step: alignedLimits ? smallBlind / bigBlind : 'any',
+      value: target / bigBlind
     };
     const customBlinds = Number(blindRange.value);
-    const raiseByPot = fraction => state.currentBet + Math.round(pot * fraction / smallBlind) * smallBlind;
+    const raiseByPot = fraction => Math.round((state.currentBet + pot * fraction) / smallBlind) * smallBlind;
     const preflop = state.street === 'preflop';
     const preflopTarget = Math.round(2.5 * bigBlind);
-    const suggested = preflop ? preflopTarget : raiseByPot(0.5);
-    const target = canRaise ? Math.min(max, Math.max(lowerLimit, suggested)) : lowerLimit;
     const presets = preflop
       ? [['2 BB', 2 * bigBlind], ['2,5 BB', preflopTarget], [formatBigBlinds(customBlinds), Math.round(customBlinds * bigBlind)]]
       : [['30% puli', raiseByPot(0.3)], ['50% puli', raiseByPot(0.5)], ['70% puli', raiseByPot(0.7)]];
@@ -212,9 +226,7 @@ const pokerView = (() => {
     const callLabel = outgoing?.call ?? (active ? toCall === 0 ? 'Check' : 'Call ' + money(Math.min(toCall, player.stack)) : 'Check / Call');
     const wagerName = avatarActionNames.get(wagerKind(state));
     const raiseLabel = outgoing?.raise ?? (canRaise ? wagerName + ' ' + money(target) : wagerName);
-    const chipRange = outgoing?.slider ?? { min: lowerLimit, max: sliderMax, step: smallBlind, value: target };
-    const restart = '<button class="zone-art-button zone-new-game action-replacement" id="newSession" type="button"><span class="zone-play-icon" aria-hidden="true"></span>Nowa gra</button>';
-    const replacement = state.phase === 'finished' ? nextHandButton : state.phase === 'gameover' && player.stack > 0 ? restart : '';
+    const replacement = state.phase === 'finished' ? nextHandButton : '';
 
     function stepperHTML(suffix, label, stepLabel, range) {
       const showBlinds = suffix && !preflop;
@@ -222,13 +234,13 @@ const pokerView = (() => {
         <button class="raise-step" type="button" id="raiseLess${suffix}" aria-label="Zmniejsz stawkę ${stepLabel}" disabled><span aria-hidden="true">−</span></button>
         <input id="raiseSlider${suffix}" type="range" aria-label="${label}" ${suffix ? `aria-valuetext="${formatBigBlinds(customBlinds)}"` : ''} min="${range.min}" max="${range.max}" step="${range.step}" value="${range.value}" ${canRaise && Number(range.min) < Number(range.max) ? '' : 'disabled'}>
         <button class="raise-step" type="button" id="raiseMore${suffix}" aria-label="Zwiększ stawkę ${stepLabel}" disabled><span aria-hidden="true">+</span></button>
-        ${showBlinds ? `<output class="raise-blind-value" id="raiseBlindValue" for="raiseSliderSecondary">${formatBigBlinds(customBlinds)}</output>` : ''}
+        ${showBlinds ? `<output id="raiseBlindValue" for="raiseSliderSecondary">${formatBigBlinds(customBlinds)}</output>` : ''}
       </div>`;
     }
 
     return `<div class="raise-controls" role="group" aria-label="Wysokość stawki">
    ${stepperHTML('', 'Stawka w żetonach', 'o jeden small blind', chipRange)}
-   <output id="raiseTo" for="raiseSlider raiseSliderSecondary raiseLess raiseMore raiseLessSecondary raiseMoreSecondary" aria-label="Stawka w żetonach" data-target="${target}" data-max="${max}">${escapeHTML(amount)}</output>
+   <output id="raiseTo" for="raiseSlider raiseSliderSecondary raiseLess raiseMore raiseLessSecondary raiseMoreSecondary" aria-label="Stawka w żetonach">${escapeHTML(amount)}</output>
    ${stepperHTML('Secondary', 'Stawka w big blindach', 'w big blindach', blindRange)}
    <div class="raise-presets">
     ${presets.map(([label, amount], index) => `<button type="button" ${preflop && index === 2 ? 'id="raiseBlindPreset"' : ''} data-raise-to="${amount}" aria-pressed="false" ${canRaise && amount >= lowerLimit && amount <= max ? '' : 'disabled'}>${label}</button>`).join('')}
@@ -242,10 +254,9 @@ const pokerView = (() => {
   }
 
   function statusHTML(state, player) {
-    if (state.phase === 'finished' || (state.phase === 'gameover' && player.stack === 0)) {
+    if (state.phase === 'finished' || state.phase === 'gameover') {
       return `<span class="result-title">${escapeHTML(state.summary)}</span>`;
     }
-    if (state.phase === 'gameover') return '<span class="result-title">Zwycięstwo! Wszyscy przeciwnicy odpadli.</span>';
     if (state.dealing) return 'Tasowanie i rozdawanie kart…';
     if (state.phase !== 'betting') return 'Przygotowanie rozdania';
     if (state.runoutFrom) return '<button class="skip-runout" id="skip-runout" type="button">Pomiń animację</button>';
@@ -264,19 +275,12 @@ const pokerView = (() => {
     return `<span class="table-corner hand-status">Układ <strong>${name}</strong></span>`;
   }
 
-  const lossDialog = `<dialog class="loss-dialog" id="lossDialog" role="alertdialog" aria-labelledby="loss-title" aria-describedby="loss-message">
-   <h2 id="loss-title">Przegrałeś</h2>
-   <p id="loss-message">Skończyły Ci się żetony.</p>
-   <button class="next" type="button" id="acknowledgeLoss" autofocus>OK</button>
- </dialog>`;
-
-  function createView(root, game, openSetup, openProfile) {
+  function createView(root, game, openProfile) {
     const find = selector => root.querySelector(selector);
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const outlineResize = typeof ResizeObserver === 'function'
       ? new ResizeObserver(entries => entries.forEach(({ target }) => layoutNextHandOutline(target))) : null;
     let showAnalysis = false;
-    let preferredBigBlinds = 5;
     let previousSessionId;
     let previousPhase;
     try {
@@ -311,24 +315,6 @@ const pokerView = (() => {
           if (game.getState().phase === 'finished') game.startHand();
         });
       }
-      const newSession = find('#newSession');
-      if (newSession) {
-        const timer = setTimeout(() => {
-          if (newSession.isConnected && !document.querySelector('dialog[open]')) newSession.click();
-        }, newGameDelay);
-        newSession.addEventListener('click', () => {
-          clearTimeout(timer);
-          openSetup();
-        });
-      }
-      const dialog = find('#lossDialog');
-      if (dialog) {
-        dialog.addEventListener('cancel', event => event.preventDefault());
-        find('#acknowledgeLoss').addEventListener('click', () => {
-          dialog.close();
-          game.newGame();
-        });
-      }
       if (turn) {
         find('#fold').addEventListener('click', () => game.act(0, { type: 'fold' }));
         find('#call').addEventListener('click', () => game.act(0, { type: 'call' }));
@@ -337,6 +323,7 @@ const pokerView = (() => {
       const raise = find('#raise');
       if (raise.disabled) return;
       const state = game.getState();
+      const { smallBlind: step, bigBlind } = state;
       const wagerName = avatarActionNames.get(wagerKind(state));
       const slider = find('#raiseSlider');
       const blindSlider = find('#raiseSliderSecondary');
@@ -349,58 +336,71 @@ const pokerView = (() => {
       const blindIncrease = find('#raiseMoreSecondary');
       const presets = [...root.querySelectorAll('.raise-presets button')];
       const min = Number(slider.min);
-      const step = Number(slider.step);
-      const max = Number(output.dataset.max);
-      let target = Number(output.dataset.target);
+      const max = Number(slider.max);
+      let target = slider.valueAsNumber;
 
       function selectRaise(amount) {
-        target = amount;
-        const formatted = money(amount);
-        slider.value = String(amount);
+        target = Math.min(max, Math.max(min, amount));
+        const formatted = money(target);
+        const blinds = target / bigBlind;
+        const blindLabel = formatBigBlinds(blinds);
+        slider.value = String(target);
+        blindSlider.value = String(blinds);
+        blindSlider.setAttribute('aria-valuetext', blindLabel);
         output.value = formatted;
         raise.textContent = wagerName + ' ' + formatted;
-        decrease.disabled = amount <= min;
-        increase.disabled = amount >= max;
-        const selected = presets.findLast(button => !button.disabled && Number(button.dataset.raiseTo) === amount);
+        decrease.disabled = blindDecrease.disabled = target <= min;
+        increase.disabled = blindIncrease.disabled = target >= max;
+        if (blindPreset) {
+          blindPreset.textContent = blindLabel;
+          blindPreset.dataset.raiseTo = String(target);
+        } else {
+          blindValue.value = blindLabel;
+        }
+        const selected = presets.findLast(button => button !== blindPreset && !button.disabled && Number(button.dataset.raiseTo) === target) ?? blindPreset;
         for (const button of presets) button.setAttribute('aria-pressed', String(button === selected));
       }
 
-      function updateBlindControls() {
-        const blinds = blindSlider.valueAsNumber;
-        const amount = Math.round(blinds * state.bigBlind);
-        const label = formatBigBlinds(blinds);
-        blindSlider.setAttribute('aria-valuetext', label);
-        blindDecrease.disabled = blinds <= Number(blindSlider.min);
-        blindIncrease.disabled = blinds >= Number(blindSlider.max);
-        if (blindPreset) {
-          blindPreset.textContent = label;
-          blindPreset.dataset.raiseTo = String(amount);
-        } else {
-          blindValue.value = label;
-        }
-        return amount;
+      function snapRaise(amount) {
+        const lower = Math.max(min, Math.floor(amount / step) * step);
+        const upper = Math.min(max, Math.ceil(amount / step) * step);
+        selectRaise(amount - lower < upper - amount ? lower : upper);
       }
 
-      function selectBigBlinds() {
-        preferredBigBlinds = blindSlider.valueAsNumber;
-        selectRaise(updateBlindControls());
+      function stepRaise(direction) {
+        const currentStep = direction > 0 ? Math.floor(target / step) : Math.ceil(target / step);
+        selectRaise((currentStep + direction) * step);
       }
 
-      slider.addEventListener('input', () => selectRaise(slider.valueAsNumber));
-      decrease.addEventListener('click', () => selectRaise(Math.max(min, target - step)));
-      increase.addEventListener('click', () => selectRaise(Math.min(max, target + step)));
-      blindSlider.addEventListener('input', selectBigBlinds);
-      blindDecrease.addEventListener('click', () => { blindSlider.stepDown(); selectBigBlinds(); });
-      blindIncrease.addEventListener('click', () => { blindSlider.stepUp(); selectBigBlinds(); });
+      for (const button of [decrease, blindDecrease]) button.addEventListener('click', () => stepRaise(-1));
+      for (const button of [increase, blindIncrease]) button.addEventListener('click', () => stepRaise(1));
+      slider.addEventListener('input', () => snapRaise(slider.valueAsNumber));
+      blindSlider.addEventListener('input', () => snapRaise(blindSlider.valueAsNumber * bigBlind));
+      if (slider.step === 'any') {
+        // Nieregularne minimum lub all-in nadal pozwala używać strzałek co small blind.
+        const directions = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 };
+        for (const range of [slider, blindSlider]) range.addEventListener('keydown', event => {
+          const direction = directions[event.key];
+          if (!direction) return;
+          event.preventDefault();
+          stepRaise(direction);
+        });
+      }
       for (const button of presets) {
         button.addEventListener('click', () => selectRaise(Number(button.dataset.raiseTo)));
       }
       raise.addEventListener('click', () => game.act(0, { type: 'raise', target }));
-      updateBlindControls();
       selectRaise(target);
     }
 
     return function render(state, { restored = false } = {}) {
+      if (!state || state.phase === 'left') {
+        outlineResize?.disconnect();
+        previousSessionId = undefined;
+        previousPhase = undefined;
+        root.replaceChildren();
+        return;
+      }
       const sameSession = previousSessionId === state.sessionId;
       const logScroll = sameSession ? find('.log')?.scrollTop ?? 0 : 0;
       const focusedControl = ['#showAnalysis', '#table-profile', '#skip-runout'].find(selector => {
@@ -412,7 +412,6 @@ const pokerView = (() => {
       const runningOut = Boolean(state.runoutFrom);
       const finished = state.phase === 'finished';
       const showHand = turn || finished || state.phase === 'gameover';
-      const lost = state.phase === 'gameover' && player.stack === 0;
       const playersInGame = state.players.filter(seat => seat.stack > 0
         || (state.phase === 'betting' && seat.hand.length === 2 && seat.allIn)).length;
       const outgoing = !restored && sameSession && previousPhase === 'betting' && (finished || state.phase === 'gameover')
@@ -459,12 +458,11 @@ const pokerView = (() => {
    ${showHand ? handStatusHTML(player.hand, state.board) : ''}
  </div>
  <div class="table-footer">
-   <div class="controls zone-surface">${controlsHTML(state, pot, game.minRaiseTo(), outgoing, Boolean(departingNextHand), preferredBigBlinds)}</div>
+   <div class="controls zone-surface">${controlsHTML(state, pot, game.minRaiseTo(), outgoing, Boolean(departingNextHand))}</div>
  </div>
- ${lost ? lossDialog : ''}
  </div><aside class="session-panels"><section class="panel"><h2>Twój styl gry (ta sesja)</h2>
  <div class="statline"><span>Rozdania</span><strong>${stats.hands}</strong></div>
- <div class="statline"><span title="Wynik netto w big blindach na 100 zakończonych rozdań">Wynik sesji</span><strong>${winRate === null ? '—' : formatWinRate(winRate)} BB/100</strong></div>
+ <div class="statline"><span tabindex="0" data-tooltip="Wynik netto w big blindach na 100 zakończonych rozdań">Wynik sesji</span><strong>${winRate === null ? '—' : formatWinRate(winRate)} BB/100</strong></div>
  <div class="statline"><span>VPIP</span><strong>${percent(stats.vpip)}</strong></div>
  <div class="statline"><span>PFR</span><strong>${percent(stats.pfr)}</strong></div>
  <div class="statline"><span>Raise / Call</span><strong>${stats.raises} / ${stats.calls}</strong></div>
@@ -474,8 +472,7 @@ const pokerView = (() => {
  <label class="log-options"><input type="checkbox" id="showAnalysis" ${showAnalysis ? 'checked' : ''}> Pokaż equity i pot odds</label>
  <ol class="log" aria-labelledby="table-actions-title">${state.logs.map(logEntryHTML).join('')}</ol>
  <p class="hint log-analysis">Equity to szacowany udział w puli. Pot odds to koszt sprawdzenia w stosunku do puli po sprawdzeniu.</p>
- </section></aside></div>
- <div class="footer">D — dealer. Żetony przy graczach pokazują stawki bieżącej rundy i wchodzą w skład łącznej puli. Prototyp bez stawek pieniężnych. Boty stosują podstawową strategię, szacują equity i pot odds oraz dostosowują decyzje do VPIP/PFR.</div>`;
+ </section></aside></div>`;
       pokerAvatars.setAvatar(find('.hero-seat .seat-avatar'), player.avatar);
       if (departingNextHand) {
         departingNextHand.addEventListener('animationend', () => departingNextHand.remove(), { once: true });

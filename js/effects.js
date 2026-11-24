@@ -10,15 +10,16 @@ function createPokerEffects(root) {
     check: new Audio('assets/audio/check.wav'),
     chips: new Audio('assets/audio/chips.wav'),
     payout: new Audio('assets/audio/payout.wav'),
-    winGame: new Audio('assets/audio/game-win.wav'),
     loseGame: new Audio('assets/audio/game-loss.wav')
   };
   const deal = pokerGame.dealTiming;
   const runout = pokerGame.runoutTiming;
-  const betDuration = 230;
+  const betDuration = 315;
   const payoutDuration = 490;
   const payoutStagger = 42;
+  const potFadeDuration = 150;
   const resultSoundDelay = 600;
+  const entryEasing = 'cubic-bezier(.22,.75,.25,1)';
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   for (const sound of Object.values(sounds)) {
     sound.preload = 'auto';
@@ -67,23 +68,80 @@ function createPokerEffects(root) {
     if (type === 'fold' || type === 'check') play(type);
   }
 
+  function animateEntry(element, { from = 'translateY(5px)', duration = 145, delay = 0 } = {}) {
+    element?.animate([
+      { opacity: 0, transform: from },
+      { opacity: 1, transform: 'none' }
+    ], { duration, delay, easing: entryEasing, fill: 'backwards' });
+  }
+
+  function animateTableChanges(stage, before, current, { newHand, newLogs }) {
+    const sameSession = before?.sessionId === current.sessionId;
+    if (!sameSession) {
+      animateEntry(stage, { from: 'none', duration: 185 });
+      animateEntry(root.querySelector('.table-footer'));
+      animateEntry(root.querySelector('.session-panels'));
+    }
+
+    let delay = 0;
+    for (const [seat, name] of current.occupiedSeats) {
+      if (sameSession && before.occupiedSeats.get(seat) === name) continue;
+      const place = stage.querySelector(`[data-seat="${seat}"]`);
+      const offset = place.matches('.top-seat, .upper-seat') ? -9 : 9;
+      animateEntry(place.querySelector('.seat-info'), { from: `translateY(${offset}px) scale(.96)`, duration: 190, delay });
+      delay += 16;
+    }
+
+    if (newHand || !sameSession) {
+      for (const marker of stage.querySelectorAll('.seat-role-markers, .seat-wager')) {
+        animateEntry(marker, { from: 'translateY(4px) scale(.94)', delay: 60 });
+      }
+    }
+    if (current.status !== before?.status) animateEntry(stage.querySelector('.table-status'));
+    if (current.handStatus !== before?.handStatus) animateEntry(stage.querySelector('.hand-status'));
+    if (newLogs > 0) {
+      const rows = root.querySelector('.log').children;
+      for (let index = 0; index < newLogs; index++) animateEntry(rows[index]);
+    }
+  }
+
+  function centerOf(element) {
+    const { x, y, width, height } = element.getBoundingClientRect();
+    return { x: x + width / 2, y: y + height / 2 };
+  }
+
   function animateDeal(items, {
     source = root.querySelector('.deal-deck'),
     delay = 0,
     duration = 190,
     stagger = Math.min(22, 130 / Math.max(1, items.length - 1))
   } = {}) {
-    const origin = source.getBoundingClientRect();
+    const origin = centerOf(source);
     items.forEach((item, i) => {
-      const target = item.getBoundingClientRect();
-      const x = origin.x + origin.width / 2 - target.x - target.width / 2;
-      const y = origin.y + origin.height / 2 - target.y - target.height / 2;
+      const target = centerOf(item);
+      const x = origin.x - target.x;
+      const y = origin.y - target.y;
       item.animate([
         { opacity: 0, transform: `translate(${x}px, ${y}px) rotate(-14deg) scale(.68)` },
         { offset: 0.55, opacity: 1, transform: `translate(${x * 0.47}px, ${y * 0.47 - 10}px) rotate(6deg)` },
         { offset: 0.9, opacity: 1, transform: 'translateY(1px) scale(1.02)' },
         { opacity: 1, transform: 'none' }
       ], { duration, delay: delay + i * stagger, easing: 'ease-out', fill: 'backwards' });
+    });
+  }
+
+  function animateWagerChips(chips, source) {
+    if (!source) return;
+    const origin = centerOf(source);
+    chips.forEach((chip, index) => {
+      const target = centerOf(chip);
+      const x = origin.x - target.x;
+      const y = origin.y - target.y;
+      chip.animate([
+        { opacity: 0, transform: `translate(${x}px, ${y}px)` },
+        { offset: 0.14, opacity: 1 },
+        { opacity: 1, transform: 'none' }
+      ], { duration: 245, delay: index * 9, easing: 'ease-out', fill: 'backwards' });
     });
   }
 
@@ -106,7 +164,7 @@ function createPokerEffects(root) {
       { opacity: 0, transform: 'translateY(125%) scale(.88)' },
       { offset: 0.83, opacity: 1, transform: 'translateY(-2px) scale(1.03)' },
       { opacity: 1, transform: 'none' }
-    ], { duration: 280, easing: 'cubic-bezier(.22,.75,.25,1)' });
+    ], { duration: 280, easing: entryEasing });
   }
 
   function animateHandCounter(stage, previousHandNo) {
@@ -198,17 +256,17 @@ function createPokerEffects(root) {
 
   function flyOnTable(stage, source, destination, markup, duration, delay = 0) {
     if (!source || !destination) return;
-    const origin = source.getBoundingClientRect();
-    const target = destination.getBoundingClientRect();
+    const origin = centerOf(source);
+    const target = centerOf(destination);
     const table = stage.getBoundingClientRect();
-    const dx = target.x + target.width / 2 - origin.x - origin.width / 2;
-    const dy = target.y + target.height / 2 - origin.y - origin.height / 2;
+    const dx = target.x - origin.x;
+    const dy = target.y - origin.y;
     const lift = Math.min(65, 18 + Math.hypot(dx, dy) / 10);
     const flight = document.createElement('div');
     flight.className = 'table-flight';
     flight.setAttribute('aria-hidden', 'true');
-    flight.style.left = `${origin.x + origin.width / 2 - table.x}px`;
-    flight.style.top = `${origin.y + origin.height / 2 - table.y}px`;
+    flight.style.left = `${origin.x - table.x}px`;
+    flight.style.top = `${origin.y - table.y}px`;
     flight.innerHTML = markup;
     stage.append(flight);
     const motion = flight.animate([
@@ -221,7 +279,14 @@ function createPokerEffects(root) {
   }
 
   function onChange(state, { restored = false, skippedRunout = false, payouts = [] } = {}) {
+    if (!state || state.phase === 'left') {
+      previous = null;
+      return 0;
+    }
+    const stage = root.querySelector('.felt');
+    const motionEnabled = !reducedMotion.matches;
     const firstDeal = previous === null;
+    const sameSession = previous?.sessionId === state.sessionId;
     const previousHandNo = previous?.handNo;
     const newHand = state.phase !== 'gameover'
       && (!previous || previous.sessionId !== state.sessionId || previous.handNo !== state.handNo);
@@ -243,7 +308,7 @@ function createPokerEffects(root) {
       && state.street === 'showdown' && previous.street !== 'showdown';
     const reveals = startingRunout || regularShowdown
       ? state.players.filter(player => player.id !== 0 && player.hand.length === 2 && !player.folded) : [];
-    previous = {
+    const current = {
       sessionId: state.sessionId,
       handNo: state.handNo,
       phase: state.phase,
@@ -253,12 +318,20 @@ function createPokerEffects(root) {
       contributions: state.players.map(player => player.contributed),
       folded: state.players.map(player => player.folded),
       allIn: state.players.map(player => player.allIn),
-      actions: state.players.map(player => player.lastAction)
+      actions: state.players.map(player => player.lastAction),
+      occupiedSeats: new Map(state.players.filter(player => player.id === 0 || player.hand.length === 2)
+        .map(player => [player.id, player.id === 0 ? '' : player.name])),
+      status: stage.querySelector('.table-status').textContent,
+      handStatus: stage.querySelector('.hand-status')?.textContent,
+      latestLog: state.logs[0]
     };
+    if (motionEnabled) {
+      const newLogs = sameSession && !restored ? state.logs.indexOf(previous.latestLog) : 0;
+      animateTableChanges(stage, previous, current, { newHand, newLogs });
+    }
+    previous = current;
 
     if (restored) return 0;
-    const stage = root.querySelector('.felt');
-    const motionEnabled = !reducedMotion.matches;
     if (newHand) playDeal(state, stage, firstDeal);
     else if (startingRunout && reveals.length && motionEnabled) {
       playOnTable('cards', stage, runout.revealDelay);
@@ -270,9 +343,8 @@ function createPokerEffects(root) {
       ? payoutDelay + payoutDuration + (payouts.length - 1) * payoutStagger : 0;
     if (payouts.length) playOnTable('payout', stage, payoutDelay);
     if (gameEnded) {
-      const cue = state.players[0].stack > 0 ? 'winGame' : 'loseGame';
       const delay = payouts.length ? Math.max(payoutEnd, payoutDelay + resultSoundDelay) : 0;
-      playOnTable(cue, stage, delay);
+      playOnTable('loseGame', stage, delay);
     }
     if (!motionEnabled) return 0;
     if (newHand) animateHandCounter(stage, previousHandNo);
@@ -285,17 +357,28 @@ function createPokerEffects(root) {
     const potChips = stage.querySelector('.pot-chips');
     const seatInfo = id => stage.querySelector(`[data-seat="${id}"] .seat-info`);
     for (const [player, amount] of bets) {
-      const wager = player.bet > 0 ? stage.querySelector(`[data-seat="${player.id}"] .spot-chips .chip-pile`) : null;
-      flyOnTable(stage, seatInfo(player.id), wager || potChips, pokerView.chipPileHTML(pokerChips.forAmount(amount)), betDuration);
-      if (!player.allIn) wager?.animate([{ opacity: 0 }, { opacity: 0 }], { duration: betDuration });
+      const addedChips = pokerChips.forAmount(amount);
+      const wager = stage.querySelector(`[data-seat="${player.id}"] .chip-scatter`);
+      if (wager) {
+        const firstAdded = player.betChips.length - addedChips.length;
+        const thrown = Array.from(wager.children).filter(chip => Number(chip.dataset.chipIndex) >= firstAdded);
+        animateWagerChips(thrown, seatInfo(player.id));
+      } else {
+        flyOnTable(stage, seatInfo(player.id), potChips, pokerView.chipPileHTML(addedChips), betDuration);
+      }
     }
     for (const player of newAllIns) {
       const marker = stage.querySelector(`[data-seat="${player.id}"] .all-in-badge`);
       const source = seatInfo(player.id);
-      if (marker && source) animateDeal([marker], { source, duration: betDuration, delay: 70 });
+      if (marker && source) animateDeal([marker], { source, duration: betDuration - 70, delay: 70 });
     }
     if (payouts.length) {
       if (payoutDelay > 0) potChips.animate([{ opacity: 1 }, { opacity: 1 }], { duration: payoutDelay });
+      stage.querySelector('.pot-display').animate([
+        { visibility: 'visible', opacity: 1 },
+        { visibility: 'visible', opacity: 1, offset: 1 - potFadeDuration / payoutEnd },
+        { visibility: 'visible', opacity: 0 }
+      ], { duration: payoutEnd });
       pokerChips.forPayouts(state.potChips, payouts).forEach(([seat, chips], index) => {
         flyOnTable(stage, potChips, seatInfo(seat), pokerView.chipPileHTML(chips), payoutDuration, payoutDelay + index * payoutStagger);
       });

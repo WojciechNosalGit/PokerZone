@@ -1,6 +1,6 @@
 'use strict';
 
-function bindPokerMenu(menu, setup, game, effects, openProfile) {
+function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
   const cardBacks = new Map([
     ['four-color', 'Cztery kolory'],
     ['classic', 'Klasyczny'],
@@ -9,43 +9,83 @@ function bindPokerMenu(menu, setup, game, effects, openProfile) {
     ['woodcut', 'Drewniany'],
     ['cyberpunk', 'Cyberpunkowy']
   ]);
-  const panels = [menu, setup];
-  const soundButtons = document.querySelectorAll('[data-game-action="sound"]');
+  const soundButton = setup.querySelector('#setup-sound');
   const historyPanel = document.querySelector('#hand-history');
   const sessionDialog = document.querySelector('#session-dialog');
-  const sessions = createPokerSessions(sessionDialog, game);
-  let sessionSource;
-  let sessionAction;
-  const findAction = (panel, action) => panel.querySelector(`[data-game-action="${action}"]`);
+  const confirmation = document.querySelector('#confirm-dialog');
+  const confirmProceed = confirmation.querySelector('#confirm-action');
+  const sessions = createPokerSessions(sessionDialog, game, confirmAction);
+  let pendingConfirmation;
+  let sessionTrigger;
+  let changingTable = false;
   const form = setup.querySelector('#setup-form');
+  const setupTitle = setup.querySelector('#setup-title');
+  const setupStatus = setup.querySelector('[data-menu-status]');
   const closeSetupButton = setup.querySelector('#close-setup');
-  const stakesSelect = setup.querySelector('#setup-stakes');
+  const saveButton = setup.querySelector('#save-session');
+  const resumeButton = setup.querySelector('#setup-resume');
+  const changeTableButton = setup.querySelector('#change-table');
+  const selectedStake = setup.querySelector('#setup-stakes');
+  const stakeList = setup.querySelector('#setup-stake-options');
+  const balanceDisplay = setup.querySelector('#setup-bankroll [data-bankroll-amount]');
+  const startButton = setup.querySelector('#start-game');
+  const startLabel = startButton.querySelector('#setup-start-label');
   const playerCount = setup.querySelector('#setup-players');
-  const { minPlayers, maxPlayers, defaultPlayers, stakes } = pokerGame;
-  for (const { smallBlind, bigBlind } of stakes) {
-    const option = document.createElement('option');
-    option.value = String(bigBlind);
-    option.textContent = `NL ${smallBlind}/${bigBlind}`;
-    stakesSelect.append(option);
-  }
-  stakesSelect.value = String(stakes[0].bigBlind);
-  for (let count = minPlayers; count <= maxPlayers; count++) {
-    const option = document.createElement('option');
-    option.value = String(count);
-    option.textContent = String(count);
-    playerCount.append(option);
-  }
+  const playerCountDisplay = setup.querySelector('#setup-player-count');
+  const playerIconRow = setup.querySelector('#setup-player-icons');
+  const fewerPlayers = setup.querySelector('#setup-players-less');
+  const morePlayers = setup.querySelector('#setup-players-more');
+  const { minPlayers, maxPlayers, defaultPlayers, stakes, buyInFor, buyInWithFunds, formatAmount, startingBankroll } = pokerGame;
+  const playerIcons = Array.from({ length: maxPlayers }, () => {
+    const icon = document.createElement('span');
+    icon.className = 'table-player-icon';
+    icon.hidden = true;
+    return icon;
+  });
+  playerIconRow.append(...playerIcons);
+  const setupFunds = () => changingTable ? game.availableBankroll() : startingBankroll;
+  const stakeOptions = stakes.map(({ smallBlind, bigBlind }) => {
+    const buyIn = buyInFor(bigBlind);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'stake-choice';
+    button.textContent = `NL ${smallBlind}/${bigBlind}`;
+    button.dataset.bigBlind = String(bigBlind);
+    button.addEventListener('click', () => {
+      if (buyInWithFunds(bigBlind, setupFunds())) selectedStake.value = String(bigBlind);
+      refreshStakes();
+    });
+    stakeList.append(button);
+    return { button, bigBlind, buyIn };
+  });
+  playerCount.min = String(minPlayers);
+  playerCount.max = String(maxPlayers);
   playerCount.value = String(defaultPlayers);
+  playerCount.addEventListener('input', updatePlayerCount);
+  fewerPlayers.addEventListener('click', () => {
+    playerCount.stepDown();
+    updatePlayerCount();
+  });
+  morePlayers.addEventListener('click', () => {
+    playerCount.stepUp();
+    updatePlayerCount();
+  });
+
+  function updatePlayerCount() {
+    const count = playerCount.valueAsNumber;
+    playerCountDisplay.textContent = String(count);
+    playerIcons.forEach((icon, index) => { icon.hidden = index >= count; });
+    fewerPlayers.disabled = count <= minPlayers;
+    morePlayers.disabled = count >= maxPlayers;
+  }
 
   const cardBackKey = 'poker-lab-card-back';
-  const backSelect = menu.querySelector('[data-card-back-select]');
   const backOptions = setup.querySelector('#setup-back-options');
   const backInputs = [];
 
   function applyCardBack(value) {
     const back = cardBacks.has(value) ? value : 'four-color';
     document.documentElement.dataset.cardBack = back;
-    backSelect.value = back;
     for (const input of backInputs) input.checked = input.value === back;
     return back;
   }
@@ -65,11 +105,6 @@ function bindPokerMenu(menu, setup, game, effects, openProfile) {
     }
   }
   for (const [value, label] of cardBacks) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = label;
-    backSelect.append(option);
-
     const tile = document.createElement('label');
     tile.className = 'setup-back-option';
     const input = document.createElement('input');
@@ -89,62 +124,87 @@ function bindPokerMenu(menu, setup, game, effects, openProfile) {
     tile.append(input, preview, caption);
     backOptions.append(tile);
   }
-  backSelect.addEventListener('change', rememberCardBack);
   applyCardBack(savedBack);
 
-  function showStatus(panel, message) {
-    const status = panel.querySelector('[data-menu-status]');
-    status.textContent = message;
-    status.hidden = false;
+  async function confirmAction(title, message, action) {
+    if (pendingConfirmation && (confirmation.open || await pendingConfirmation)) return false;
+    if (confirmation.open) return false;
+    confirmation.querySelector('#confirm-title').textContent = title;
+    confirmation.querySelector('#confirm-message').textContent = message;
+    confirmProceed.textContent = action;
+    confirmation.returnValue = '';
+    pendingConfirmation = new Promise(resolve => {
+      confirmation.addEventListener('close', () => {
+        pendingConfirmation = null;
+        resolve(confirmation.returnValue === 'confirm');
+      }, { once: true });
+    });
+    confirmation.showModal();
+    return pendingConfirmation;
+  }
+
+  function showStatus(message) {
+    setupStatus.textContent = message;
+    setupStatus.hidden = false;
   }
 
   function updateSound(enabled) {
-    for (const sound of soundButtons) {
-      sound.setAttribute('aria-pressed', String(enabled));
-      sound.title = enabled ? 'Wycisz dźwięk' : 'Włącz dźwięk';
-    }
+    soundButton.setAttribute('aria-pressed', String(enabled));
+    soundButton.dataset.tooltip = enabled ? 'Wycisz dźwięk' : 'Włącz dźwięk';
   }
 
   function refreshSessionActions() {
-    const hasSave = sessions.hasSaves();
-    for (const panel of panels) {
-      findAction(panel, 'resume').disabled = !hasSave;
+    const inGame = Boolean(game.getState());
+    resumeButton.disabled = !sessions.hasSaves();
+    saveButton.hidden = saveButton.disabled = !inGame;
+    changeTableButton.hidden = changeTableButton.disabled = !inGame;
+  }
+
+  function refreshStakes() {
+    const available = setupFunds();
+    const canAfford = option => buyInWithFunds(option.bigBlind, available) > 0;
+    const selection = stakeOptions.find(option => option.bigBlind === Number(selectedStake.value) && canAfford(option))
+      ?? stakeOptions.find(canAfford);
+    selectedStake.value = selection ? String(selection.bigBlind) : '';
+    startButton.disabled = !selection;
+    balanceDisplay.textContent = formatAmount(available);
+    for (const option of stakeOptions) {
+      const locked = !canAfford(option);
+      option.button.setAttribute('aria-disabled', String(locked));
+      option.button.setAttribute('aria-pressed', String(option === selection));
+      if (locked) option.button.dataset.tooltip = `Musisz uzbierać ${formatAmount(option.buyIn)}.`;
+      else delete option.button.dataset.tooltip;
     }
-    findAction(menu, 'save').disabled = !game.getState();
   }
 
-  function closePanels() {
-    menu.open = false;
-    if (setup.open) setup.close();
-  }
-
-  function openSetup() {
-    if (setup.open) return;
-    menu.open = false;
+  function openSetup(mode = 'new') {
     const state = game.getState();
-    closeSetupButton.hidden = !state;
-    setup.setAttribute('closedby', state ? 'closerequest' : 'none');
-    if (state) {
-      stakesSelect.value = String(state.bigBlind);
-      playerCount.value = String(state.players.length);
-    } else {
-      historyPanel.hidden = true;
-    }
-    setup.querySelector('[data-menu-status]').hidden = true;
+    const change = mode === 'change' && Boolean(state);
+    changingTable = change;
+    setupTitle.textContent = change ? 'Zmień stół' : 'Nowa gra';
+    startLabel.textContent = change ? 'Zagraj przy tym stole' : 'Rozpocznij grę';
+    changeTableButton.textContent = change ? 'Nowa gra' : 'Zmień stół';
+    const canReturn = state && state.phase !== 'left';
+    closeSetupButton.hidden = !canReturn;
+    setup.setAttribute('closedby', canReturn ? 'closerequest' : 'none');
+    selectedStake.value = String(change && state.phase === 'left' ? state.bigBlind : stakes[0].bigBlind);
+    playerCount.value = String(change ? state.players.length : defaultPlayers);
+    if (!state) historyPanel.hidden = true;
+    setupStatus.hidden = true;
+    updatePlayerCount();
+    refreshStakes();
     refreshSessionActions();
     game.pause();
-    setup.showModal();
+    if (!setup.open) setup.showModal();
   }
 
-  function openSessionDialog(panel, action) {
+  function openSessionDialog(action, trigger) {
     if (!sessions.open(action)) {
-      showStatus(panel, action === 'resume' ? 'Brak zapisanych sesji.' : 'Rozpocznij grę, aby zapisać sesję.');
+      showStatus(action === 'resume' ? 'Brak zapisanych sesji.' : 'Rozpocznij grę, aby zapisać sesję.');
       refreshSessionActions();
       return;
     }
-    sessionSource = panel;
-    sessionAction = action;
-    menu.open = false;
+    sessionTrigger = trigger;
     game.pause();
   }
 
@@ -153,12 +213,16 @@ function bindPokerMenu(menu, setup, game, effects, openProfile) {
     const result = sessionDialog.returnValue;
     if (!setup.open) game.resume();
     if (result === 'resumed') {
-      closePanels();
-      menu.querySelector('summary').focus({ preventScroll: true });
+      if (game.getState()?.phase === 'left') {
+        openSetup('change');
+        startButton.focus({ preventScroll: true });
+      } else {
+        setup.close();
+        menuButton.focus({ preventScroll: true });
+      }
     } else {
-      if (sessionSource === menu) menu.open = true;
-      if (result === 'saved') showStatus(sessionSource, 'Zapisano sesję w tej przeglądarce.');
-      findAction(sessionSource, sessionAction).focus({ preventScroll: true });
+      if (result === 'saved') showStatus('Zapisano sesję w tej przeglądarce.');
+      sessionTrigger.focus({ preventScroll: true });
     }
     refreshSessionActions();
   });
@@ -167,43 +231,50 @@ function bindPokerMenu(menu, setup, game, effects, openProfile) {
     if (!setup.open && !sessionDialog.open) game.resume();
   });
   setup.addEventListener('cancel', event => {
-    if (!game.getState()) event.preventDefault();
-  });
-  closeSetupButton.addEventListener('click', closePanels);
-  setup.querySelector('#setup-profile').addEventListener('click', () => openProfile('setup'));
-  menu.querySelector('#reset').addEventListener('click', openSetup);
-  form.addEventListener('submit', event => {
-    event.preventDefault();
     const state = game.getState();
-    if (state && state.phase !== 'gameover' && !confirm('Rozpocząć nową grę? Bieżące żetony i statystyki zostaną wyzerowane.')) return;
-    game.newGame({ bigBlind: Number(stakesSelect.value), playerCount: Number(playerCount.value) });
-    closePanels();
+    if (!state || state.phase === 'left') event.preventDefault();
+  });
+  closeSetupButton.addEventListener('click', () => setup.close());
+  setup.querySelector('#setup-profile').addEventListener('click', () => openProfile('setup'));
+  menuButton.addEventListener('click', () => openSetup(game.getState()?.phase === 'left' ? 'change' : 'new'));
+  changeTableButton.addEventListener('click', () => openSetup(changingTable ? 'new' : 'change'));
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const stake = stakeOptions.find(option => option.bigBlind === Number(selectedStake.value));
+    if (!stake || !buyInWithFunds(stake.bigBlind, setupFunds())) {
+      refreshStakes();
+      return;
+    }
+    const state = game.getState();
+    const change = changingTable;
+    const players = playerCount.valueAsNumber;
+
+    if (change && (state.phase === 'betting' || state.phase === 'finished')) {
+      const accepted = await confirmAction('Zmienić stół?', 'Żetony poza pulą wrócą na saldo, z którego zostanie pobrane nowe wpisowe.', 'Zmień stół');
+      if (!accepted) return;
+    } else if (!change && state && !sessions.hasCurrentSave()) {
+      const accepted = await confirmAction('Niezapisany postęp', 'Twój aktualny postęp zostanie utracony.', 'Rozpocznij bez zapisu');
+      if (!accepted) return;
+    }
+
+    if (!setup.open || changingTable !== change || game.getState() !== state || !buyInWithFunds(stake.bigBlind, setupFunds())) {
+      refreshStakes();
+      return;
+    }
+    const start = change ? game.changeTable : game.newGame;
+    start({ bigBlind: stake.bigBlind, playerCount: players });
+    setup.close();
     refreshSessionActions();
   });
 
-  menu.addEventListener('toggle', () => {
-    if (menu.open) refreshSessionActions();
-  });
   window.addEventListener('storage', refreshSessionActions);
-  menu.addEventListener('keydown', event => {
-    if (event.key !== 'Escape' || !menu.open || event.defaultPrevented) return;
-    const select = event.target.closest('select');
-    if (select && globalThis.CSS?.supports('selector(select:open)') && select.matches(':open')) return;
-    menu.open = false;
-    menu.querySelector('summary').focus();
+  saveButton.addEventListener('click', () => openSessionDialog('save', saveButton));
+  resumeButton.addEventListener('click', () => openSessionDialog('resume', resumeButton));
+  setup.querySelector('#open-history').addEventListener('click', () => {
+    historyPanel.hidden = false;
+    setup.close();
   });
-  document.addEventListener('click', event => {
-    if (menu.open && !menu.contains(event.target)) menu.open = false;
-  });
-  findAction(menu, 'save').addEventListener('click', () => openSessionDialog(menu, 'save'));
-  for (const panel of panels) {
-    findAction(panel, 'resume').addEventListener('click', () => openSessionDialog(panel, 'resume'));
-    findAction(panel, 'history').addEventListener('click', () => {
-      historyPanel.hidden = false;
-      closePanels();
-    });
-  }
-  for (const sound of soundButtons) sound.addEventListener('click', () => updateSound(effects.toggleSound()));
+  soundButton.addEventListener('click', () => updateSound(effects.toggleSound()));
   updateSound(effects.soundEnabled());
   return openSetup;
 }

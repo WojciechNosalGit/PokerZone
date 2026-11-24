@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PokerZone</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/images/favicon.png">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/deck-themes.css">
   <link rel="stylesheet" href="css/zone.css">
@@ -20,36 +21,21 @@
   <script defer src="js/profile.js"></script>
   <script defer src="js/sessions.js"></script>
   <script defer src="js/menu.js"></script>
+  <script defer src="js/tooltips.js"></script>
   <script defer src="js/main.js"></script>
 </head>
 <body>
   <main class="wrap">
     <header class="topline">
       <h1 class="zone-brand"><span class="zone-visually-hidden">PokerZone</span></h1>
-      <div class="header-controls">
-        <button class="reset sound-toggle" type="button" id="sound" data-game-action="sound" aria-label="Dźwięk" aria-pressed="true">
-          <span class="sound-icon" aria-hidden="true"><span class="sound-wave"></span></span>
-        </button>
-        <button class="header-profile" type="button" id="open-profile" aria-haspopup="dialog" aria-controls="player-profile" aria-label="Wyświetl profil">
-          <span class="seat-avatar" id="header-avatar" aria-hidden="true"></span>
-          <span class="header-profile-name" id="header-player-name">Ty</span>
-        </button>
-        <details class="game-menu" id="game-menu">
-          <summary class="reset menu-summary">Menu</summary>
-          <div class="menu-panel zone-surface">
-            <button type="button" class="menu-item" id="save-session" data-game-action="save" aria-haspopup="dialog" disabled><span class="zone-icon" aria-hidden="true">↧</span>Zapisz sesję</button>
-            <button type="button" class="menu-item" id="resume-session" data-game-action="resume" aria-haspopup="dialog" disabled><span class="zone-icon" aria-hidden="true">▷</span>Wznów sesję</button>
-            <a class="menu-item" id="open-history" data-game-action="history" href="#hand-history"><span class="zone-icon zone-icon-gold" aria-hidden="true">♠</span>Historia</a>
-            <label class="theme-field zone-field">
-              <span><span class="zone-icon zone-icon-gold" aria-hidden="true">♠</span>Rewers kart</span>
-              <select data-card-back-select></select>
-            </label>
-            <div class="menu-settings">
-              <button type="button" class="zone-art-button zone-new-game" id="reset"><span class="zone-play-icon" aria-hidden="true"></span>Nowa gra</button>
-            </div>
-            <p class="menu-status" id="menu-status" data-menu-status role="status" hidden></p>
-          </div>
-        </details>
+      <output class="bankroll-display header-bankroll" id="header-bankroll" tabindex="0" aria-label="Twój bankroll" data-tooltip="Kwota do wykorzystania w trakcie gry.">
+        <span class="bankroll-icon" aria-hidden="true"></span><span data-bankroll-amount>—</span>
+      </output>
+      <div class="header-actions">
+        <div id="leave-table-action" hidden>
+          <button class="reset game-menu-button leave-table-button" type="button" id="leaveTable" aria-haspopup="dialog" aria-controls="game-setup" data-tooltip="Żetony spoza puli wrócą do bankrolla. Możesz wybrać inny stół.">Opuść stół</button>
+        </div>
+        <button class="reset game-menu-button" type="button" id="game-menu" aria-haspopup="dialog" aria-controls="game-setup">Menu</button>
       </div>
     </header>
     <div id="app" aria-live="polite"></div>
@@ -59,34 +45,58 @@
     <header class="zone-dialog-heading setup-heading">
       <h2 class="zone-visually-hidden" id="setup-title">Nowa gra</h2>
       <span class="zone-brand setup-brand" aria-hidden="true"></span>
-      <button class="reset sound-toggle" type="button" id="setup-sound" data-game-action="sound" aria-label="Dźwięk" aria-pressed="true">
+      <button class="reset sound-toggle" type="button" id="setup-sound" aria-label="Dźwięk" aria-pressed="true">
         <span class="sound-icon" aria-hidden="true"><span class="sound-wave"></span></span>
       </button>
       <button class="reset zone-close" type="button" id="close-setup" aria-label="Wróć do gry" hidden>×</button>
     </header>
     <form id="setup-form">
+      <div class="setup-account">
+        <div>
+          <label class="setup-account-label" for="setup-bankroll">Twój bankroll</label>
+          <output class="bankroll-display setup-bankroll" id="setup-bankroll" tabindex="0" data-tooltip="Kwota do wykorzystania w trakcie gry.">
+            <span class="bankroll-icon" aria-hidden="true"></span><span data-bankroll-amount>—</span>
+          </output>
+        </div>
+        <div class="setup-account-profile">
+          <span class="setup-account-label">Profil</span>
+          <button class="header-profile setup-profile" type="button" id="setup-profile" aria-haspopup="dialog" aria-controls="player-profile" aria-label="Wyświetl profil">
+            <span class="seat-avatar" aria-hidden="true"></span>
+            <span class="header-profile-name">Ty</span>
+          </button>
+        </div>
+      </div>
       <div class="setup-fields">
-        <label for="setup-stakes" class="zone-field">
-          <span><span class="zone-icon" aria-hidden="true">◎</span>Stawki</span>
-          <select id="setup-stakes" name="bigBlind"></select>
-        </label>
-        <label for="setup-players" class="zone-field">
-          <span><span class="zone-icon zone-icon-user" aria-hidden="true"></span>Liczba graczy</span>
-          <select id="setup-players" name="playerCount"></select>
-        </label>
+        <fieldset class="setup-stakes">
+          <legend>Stawki</legend>
+          <input type="hidden" id="setup-stakes" name="bigBlind">
+          <div class="stake-options" id="setup-stake-options"></div>
+        </fieldset>
+        <fieldset class="setup-player-control">
+          <legend id="setup-player-label">Liczba graczy <span id="setup-player-count" aria-hidden="true"></span></legend>
+          <div class="setup-player-row">
+            <div class="raise-stepper">
+              <button class="raise-step" id="setup-players-less" type="button" aria-label="Zmniejsz liczbę graczy"><span aria-hidden="true">−</span></button>
+              <input id="setup-players" name="playerCount" type="range" step="1" aria-labelledby="setup-player-label">
+              <button class="raise-step" id="setup-players-more" type="button" aria-label="Zwiększ liczbę graczy"><span aria-hidden="true">+</span></button>
+            </div>
+            <div class="setup-player-icons" id="setup-player-icons" aria-hidden="true"></div>
+          </div>
+        </fieldset>
       </div>
       <fieldset class="setup-backs">
         <legend>Rewers kart</legend>
         <div class="setup-back-options" id="setup-back-options"></div>
       </fieldset>
       <div class="setup-controls">
-        <button class="zone-art-button zone-start-game" type="submit" id="start-game" autofocus><span class="zone-play-icon" aria-hidden="true"></span>Rozpocznij grę</button>
+        <button class="zone-art-button zone-start-game" type="submit" id="start-game" autofocus><span class="zone-play-icon" aria-hidden="true"></span><span id="setup-start-label">Rozpocznij grę</span></button>
       </div>
     </form>
     <div class="setup-actions">
-      <button type="button" class="zone-art-button" id="setup-resume" data-game-action="resume" aria-haspopup="dialog" disabled>Wznów sesję</button>
-      <a class="zone-art-button" data-game-action="history" href="#hand-history">Historia</a>
-      <button type="button" class="zone-art-button" id="setup-profile" aria-haspopup="dialog" aria-controls="player-profile">Wyświetl profil</button>
+      <button type="button" class="zone-art-button" id="save-session" aria-haspopup="dialog" hidden disabled>Zapisz sesję</button>
+      <button type="button" class="zone-art-button" id="setup-resume" aria-haspopup="dialog" disabled>Wznów sesję</button>
+      <button type="button" class="zone-art-button" id="change-table" hidden disabled>Zmień stół</button>
+      <a class="zone-art-button" id="open-history" href="#hand-history">Historia</a>
     </div>
     <p class="menu-status" data-menu-status role="status" hidden></p>
   </dialog>
@@ -97,24 +107,37 @@
       <button class="reset zone-close" type="button" id="close-session-dialog" aria-label="Zamknij">×</button>
     </header>
     <form id="session-form">
-      <div class="zone-field">
-        <label id="session-field-label" for="session-name">Nazwa sesji</label>
+      <div class="zone-field" id="session-list-field" hidden>
+        <label id="session-list-label" for="session-list">Zapisane sesje</label>
+        <select id="session-list" disabled></select>
+      </div>
+      <div class="zone-field" id="session-name-field">
+        <label for="session-name">Nazwa sesji</label>
         <input id="session-name" type="text" maxlength="48" autocomplete="off">
-        <select id="session-list" hidden disabled></select>
       </div>
       <p class="menu-status" id="session-status" role="status" hidden></p>
       <div class="setup-controls">
         <button class="zone-art-button" id="submit-session" type="submit">Zapisz sesję</button>
-        <button class="reset" id="cancel-session-dialog" type="button">Anuluj</button>
+        <button class="zone-art-button zone-cancel-button" id="cancel-session-dialog" type="button">Anuluj</button>
       </div>
+    </form>
+  </dialog>
+  <dialog class="setup-dialog zone-dialog zone-surface" id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <header class="zone-dialog-heading">
+      <h2 id="confirm-title"></h2>
+    </header>
+    <p id="confirm-message"></p>
+    <form method="dialog" class="setup-controls">
+      <button class="zone-art-button" id="confirm-action" type="submit" value="confirm"></button>
+      <button class="zone-art-button zone-cancel-button" type="submit" value="cancel" autofocus>Anuluj</button>
     </form>
   </dialog>
   <dialog class="setup-dialog profile-dialog" id="player-profile" aria-labelledby="profile-title">
     <header class="profile-header">
       <h2 id="profile-title">Twój profil</h2>
       <div class="profile-actions">
-        <button class="next" id="save-profile" type="submit" form="profile-form">Zapisz profil</button>
-        <button class="reset" id="cancel-profile" type="button">Anuluj</button>
+        <button class="zone-art-button" id="save-profile" type="submit" form="profile-form">Zapisz profil</button>
+        <button class="zone-art-button zone-cancel-button" id="cancel-profile" type="button">Anuluj</button>
       </div>
       <button class="reset zone-close" id="close-profile" type="button" aria-label="Zamknij profil">×</button>
       <p class="menu-status" id="profile-status" role="status" hidden></p>
@@ -127,11 +150,18 @@
         <div class="profile-avatar-fields">
           <label for="profile-avatar">Avatar</label>
           <input id="profile-avatar" type="file" accept="image/*">
-          <button class="reset" id="random-avatar" type="button">Losowy avatar</button>
+          <button class="reset" id="default-avatar" type="button">Domyślny awatar</button>
         </div>
       </div>
       <div id="profile-avatar-gallery"></div>
     </form>
   </dialog>
+  <dialog class="loss-dialog" id="lossDialog" role="alertdialog" aria-labelledby="loss-title">
+    <h2 id="loss-title">Przegrałeś</h2>
+    <div class="setup-controls">
+      <button class="zone-art-button zone-start-game" type="button" id="acknowledgeLoss" autofocus>Rozpocznij nową grę</button>
+    </div>
+  </dialog>
+  <div class="zone-tooltip" id="poker-tooltip" role="tooltip" popover="manual" hidden></div>
 </body>
 </html>

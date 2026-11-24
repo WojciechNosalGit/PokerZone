@@ -1,8 +1,11 @@
 'use strict';
 
 const pokerGame = (() => {
-  const START_STACK = 1000;
+  const STARTING_BIG_BLINDS = 100;
+  const startingBankroll = 800;
+  const LEGACY_STARTING_STACK = 1000;
   const stakes = [
+    { smallBlind: 2, bigBlind: 4 },
     { smallBlind: 5, bigBlind: 10 },
     { smallBlind: 10, bigBlind: 20 }
   ];
@@ -15,13 +18,22 @@ const pokerGame = (() => {
   const defaultPlayers = 4;
   const profiles = [
     { name: 'Ty', kind: 'human' },
-    { name: 'Ada', kind: 'tight' },
-    { name: 'Bartek', kind: 'loose' },
-    { name: 'Chris', kind: 'balanced' },
-    { name: 'Daria', kind: 'balanced' },
-    { name: 'Emil', kind: 'tight' },
-    { name: 'Franek', kind: 'loose' },
-    { name: 'Gosia', kind: 'balanced' }
+    { name: 'Ada', kind: 'tight', avatarGender: 'female' },
+    { name: 'Bartek', kind: 'loose', avatarGender: 'male' },
+    { name: 'Chris', kind: 'balanced', avatarGender: 'male' },
+    { name: 'Daria', kind: 'balanced', avatarGender: 'female' },
+    { name: 'Emil', kind: 'tight', avatarGender: 'male' },
+    { name: 'Franek', kind: 'loose', avatarGender: 'male' },
+    { name: 'Gosia', kind: 'balanced', avatarGender: 'female' }
+  ];
+  const botProfiles = [...profiles.slice(1),
+    { name: 'Iga', kind: 'tight', avatarGender: 'female' },
+    { name: 'Leon', kind: 'loose', avatarGender: 'male' },
+    { name: 'Klara', kind: 'balanced', avatarGender: 'female' },
+    { name: 'Maks', kind: 'balanced', avatarGender: 'male' },
+    { name: 'Olaf', kind: 'tight', avatarGender: 'male' },
+    { name: 'Lena', kind: 'loose', avatarGender: 'female' },
+    { name: 'Nina', kind: 'balanced', avatarGender: 'female' }
   ];
   const maxPlayers = profiles.length;
   const positionsFromButton = {
@@ -35,6 +47,14 @@ const pokerGame = (() => {
   };
   const { fullDeck, shuffled, randomIndex, score7, compareScore, handNames } = pokerCards;
   const formatAmount = amount => Number(amount).toLocaleString('pl-PL');
+  const buyInFor = bigBlind => STARTING_BIG_BLINDS * bigBlind;
+  const buyInWithFunds = (bigBlind, funds) => {
+    const fullBuyIn = buyInFor(bigBlind);
+    if (funds >= fullBuyIn) return fullBuyIn;
+    return bigBlind === stakes[0].bigBlind ? funds : 0;
+  };
+  const isBankroll = amount => Number.isSafeInteger(amount) && amount >= 0;
+  const isTableClosed = phase => phase === 'gameover' || phase === 'left';
   const createId = () => crypto.randomUUID?.() ?? crypto.getRandomValues(new Uint32Array(4)).join('-');
 
   function positionsForHand(dealer, seats) {
@@ -54,25 +74,57 @@ const pokerGame = (() => {
   const displayName = player => player.id === 0 ? player.name : (player.position ?? '—');
   const wagerKind = state => state.street !== 'preflop' && state.currentBet === 0 ? 'bet' : 'raise';
 
-  function createState(playerCount, blinds) {
+  function availableBotProfiles(players) {
+    const names = new Set(players.slice(1).map(player => player.name));
+    return shuffled(botProfiles.filter(profile => !names.has(profile.name)));
+  }
+
+  function takeBotProfile(available, kind) {
+    const matching = available.findIndex(profile => profile.kind === kind);
+    return available.splice(Math.max(0, matching), 1)[0];
+  }
+
+  function createPlayer(profile, id, stack) {
+    return {
+      ...profile,
+      id,
+      avatar: null,
+      stack,
+      hand: [],
+      bet: 0,
+      betChips: [],
+      contributed: 0,
+      folded: false,
+      allIn: false,
+      acted: false,
+      canRaise: true,
+      lastAction: null
+    };
+  }
+
+  function createState(playerCount, blinds, heroBuyIn, previousPlayers) {
+    const startingStack = buyInFor(blinds.bigBlind);
+    const tableProfiles = profiles.slice(0, playerCount);
+    if (previousPlayers) {
+      const available = availableBotProfiles(previousPlayers);
+      for (let seat = 1; seat < playerCount; seat++) {
+        tableProfiles[seat] = takeBotProfile(available, tableProfiles[seat].kind);
+      }
+    }
+    const players = tableProfiles.map((profile, id) => createPlayer(profile, id, id === 0 ? heroBuyIn : startingStack));
+    if (blinds.bigBlind === 4) {
+      const [first, second] = shuffled(players.slice(1));
+      first.preflopStyle = randomIndex(2) ? 'loose' : 'loose-aggressive';
+      if (playerCount >= 6) second.preflopStyle = first.preflopStyle === 'loose' ? 'loose-aggressive' : 'loose';
+    }
     return {
       sessionId: createId(),
       ...blinds,
+      startingStack,
+      heroBuyIns: heroBuyIn,
+      tableBuyIns: heroBuyIn + (playerCount - 1) * startingStack,
       handId: null,
-      players: profiles.slice(0, playerCount).map((profile, id) => ({
-        ...profile,
-        id,
-        stack: START_STACK,
-        hand: [],
-        bet: 0,
-        betChips: [],
-        contributed: 0,
-        folded: false,
-        allIn: false,
-        acted: false,
-        canRaise: true,
-        lastAction: null
-      })),
+      players,
       dealer: -1,
       sbSeat: -1,
       bbSeat: -1,
@@ -101,6 +153,7 @@ const pokerGame = (() => {
 
   function createGame(onChange, onHandFinished = () => {}, onAction = () => {}) {
     let state = null;
+    let bankroll = startingBankroll;
     let paused = false;
     let dealTimer = null;
     let heroProfile;
@@ -111,6 +164,33 @@ const pokerGame = (() => {
     const contenders = () => state.players.filter(player => player.hand.length === 2 && !player.folded);
     const eligible = () => contenders().filter(player => !player.allIn);
     const minRaiseTo = () => state.currentBet === 0 ? state.bigBlind : state.currentBet + state.lastRaise;
+    const availableBankroll = () => bankroll + (state && !isTableClosed(state.phase) ? human().stack : 0);
+
+    function finishTable(phase = 'gameover') {
+      bankroll = availableBankroll();
+      state.phase = phase;
+    }
+
+    function clearTableTimers() {
+      if (state?.timer != null) {
+        clearTimeout(state.timer);
+        state.timer = null;
+      }
+      if (dealTimer !== null) {
+        clearTimeout(dealTimer);
+        dealTimer = null;
+      }
+    }
+
+    function leaveTable() {
+      if (!state || isTableClosed(state.phase)) return;
+      clearTableTimers();
+      finishTable(availableBankroll() === 0 ? 'gameover' : 'left');
+      state.actor = -1;
+      state.dealing = false;
+      state.runoutFrom = null;
+      onChange(state);
+    }
 
     function prepareRunout() {
       if (state.runoutFrom || contenders().length < 2) return;
@@ -122,17 +202,14 @@ const pokerGame = (() => {
 
     function setHeroProfile({ name, avatar }) {
       heroProfile = { name, avatar: pokerAvatars.isPreset(avatar) || pokerAvatars.isUpload(avatar) ? avatar : '' };
-      if (state) {
-        applyHeroProfile();
-        pokerAvatars.fillSeatAvatars(state.players);
-      }
+      if (state) applyHeroProfile();
     }
 
     function applyHeroProfile() {
       if (!heroProfile) return;
       const player = human();
       player.name = heroProfile.name;
-      if (heroProfile.avatar || player.avatarSelected) player.avatar = heroProfile.avatar || null;
+      player.avatar = heroProfile.avatar || null;
       player.avatarSelected = Boolean(heroProfile.avatar);
     }
 
@@ -153,7 +230,7 @@ const pokerGame = (() => {
       const completed = state.stats.hands - (openHand ? 1 : 0);
       if (completed <= 0) return null;
       const settledStack = openHand ? openHand.startingStack : human().stack;
-      return (settledStack - START_STACK) * 100 / (state.bigBlind * completed);
+      return (settledStack - state.heroBuyIns) * 100 / (state.bigBlind * completed);
     }
 
     function nextSeat(after, predicate) {
@@ -170,15 +247,35 @@ const pokerGame = (() => {
       if (state.logs.length > 70) state.logs.length = 70;
     }
 
-    function newGame({ playerCount = state?.players.length ?? defaultPlayers, bigBlind = state?.bigBlind ?? stakes[0].bigBlind } = {}) {
+    function newGame({ playerCount = defaultPlayers, bigBlind = stakes[0].bigBlind } = {}) {
+      startTable(playerCount, bigBlind, startingBankroll);
+    }
+
+    function resetGame() {
+      clearTableTimers();
+      state = null;
+      bankroll = startingBankroll;
+      onChange(state);
+    }
+
+    function changeTable({ playerCount = state?.players.length ?? defaultPlayers, bigBlind = state?.bigBlind ?? stakes[0].bigBlind } = {}) {
+      if (!state) throw new Error('Najpierw rozpocznij lub wznów grę.');
+      startTable(playerCount, bigBlind, availableBankroll(), state.players);
+    }
+
+    function startTable(playerCount, bigBlind, availableFunds, previousPlayers) {
       const blinds = stakes.find(stake => stake.bigBlind === bigBlind);
       if (!Number.isInteger(playerCount) || playerCount < minPlayers || playerCount > maxPlayers
         || !blinds) throw new RangeError('Nieprawidłowe ustawienia stołu.');
-      if (state?.timer) clearTimeout(state.timer);
-      state = createState(playerCount, blinds);
+      const buyIn = buyInWithFunds(bigBlind, availableFunds);
+      if (!buyIn) throw new RangeError(`Musisz uzbierać ${formatAmount(buyInFor(bigBlind))} na to wpisowe.`);
+      const nextTable = createState(playerCount, blinds, buyIn, previousPlayers);
+      clearTableTimers();
+      bankroll = availableFunds - buyIn;
+      state = nextTable;
       applyHeroProfile();
-      pokerAvatars.fillSeatAvatars(state.players);
-      addLog({ kind: 'notice', text: `Nowa sesja · ${playerCount} graczy · NL ${blinds.smallBlind}/${blinds.bigBlind} · ${START_STACK} żetonów na gracza` });
+      pokerAvatars.fillBotAvatars(state.players);
+      addLog({ kind: 'notice', text: `Nowa sesja · ${playerCount} graczy · NL ${blinds.smallBlind}/${blinds.bigBlind} · Wpisowe: ${formatAmount(buyIn)}` });
       startHand();
     }
 
@@ -199,14 +296,15 @@ const pokerGame = (() => {
 
     function saveSession() {
       const { timer, epoch, dealing, runoutFrom, ...snapshot } = state;
-      return JSON.stringify({ version: 2, snapshot });
+      return JSON.stringify({ version: 3, bankroll, snapshot });
     }
 
     function restoreSession(serialized) {
-      const { version, snapshot } = JSON.parse(serialized);
-      const blinds = stakes.find(stake => stake.bigBlind === (snapshot?.bigBlind ?? stakes[0].bigBlind));
-      if ((version !== 1 && version !== 2) || typeof snapshot?.sessionId !== 'string'
-        || !['betting', 'finished', 'gameover'].includes(snapshot.phase)
+      const { version, snapshot, bankroll: savedBankroll } = JSON.parse(serialized);
+      // Zapisy sprzed wyboru stawek pochodziły ze stołu NL 5/10.
+      const blinds = stakes.find(stake => stake.bigBlind === (snapshot?.bigBlind ?? 10));
+      if (![1, 2, 3].includes(version) || typeof snapshot?.sessionId !== 'string'
+        || !['betting', 'finished', 'gameover', 'left'].includes(snapshot.phase)
         || !Array.isArray(snapshot.players) || snapshot.players.length < minPlayers || snapshot.players.length > maxPlayers
         || !blinds || (snapshot.smallBlind != null && snapshot.smallBlind !== blinds.smallBlind)
         || !snapshot.players.every((player, id) => player?.id === id && typeof player.name === 'string'
@@ -218,8 +316,27 @@ const pokerGame = (() => {
           || (snapshot.actor !== -1 && !snapshot.players[snapshot.actor])))) {
         throw new Error('Nieobsługiwany zapis sesji.');
       }
+      const startingStack = snapshot.startingStack ?? LEGACY_STARTING_STACK;
+      const heroBuyIns = snapshot.heroBuyIns ?? startingStack;
+      const tableBuyIns = snapshot.tableBuyIns ?? snapshot.players.length * startingStack;
       const totalPot = snapshot.players.reduce((sum, player) => sum + player.contributed, 0);
-      if (totalPot > snapshot.players.length * START_STACK) throw new Error('Nieobsługiwany zapis sesji.');
+      if ((startingStack !== LEGACY_STARTING_STACK && startingStack !== buyInFor(blinds.bigBlind))
+        || !isBankroll(heroBuyIns) || !isBankroll(tableBuyIns) || heroBuyIns > tableBuyIns || totalPot > tableBuyIns) {
+        throw new Error('Nieobsługiwany zapis sesji.');
+      }
+      const heroStack = snapshot.players[0].stack;
+      const savedAsClosed = isTableClosed(snapshot.phase);
+      let restoredBankroll = version === 3 ? savedBankroll
+        : Math.max(0, startingBankroll - buyInFor(blinds.bigBlind)) + (savedAsClosed ? heroStack : 0);
+      if (!isBankroll(restoredBankroll)) throw new Error('Nieobsługiwany zapis sesji.');
+      let phase = snapshot.phase;
+      // Starsze zwycięstwa dopisywały stack do bankrolla, choć zostawał widoczny przy stole.
+      if (phase === 'gameover' && heroStack > 0) restoredBankroll -= heroStack;
+      if (phase === 'gameover' && (heroStack > 0 || restoredBankroll > 0)) phase = 'finished';
+      if (phase === 'left' && heroStack === 0 && restoredBankroll === 0) phase = 'gameover';
+      if (!isBankroll(restoredBankroll) || !isBankroll(restoredBankroll + (isTableClosed(phase) ? 0 : heroStack))) {
+        throw new Error('Nieobsługiwany zapis sesji.');
+      }
       for (const player of snapshot.players) {
         if (!pokerChips.matchesAmount(player.betChips, player.bet)) player.betChips = pokerChips.forAmount(player.bet);
       }
@@ -242,11 +359,11 @@ const pokerGame = (() => {
             ?? roundActions.get(profiles[player.id].name) ?? null;
         }
       }
-      if (state?.timer) clearTimeout(state.timer);
-      if (dealTimer !== null) clearTimeout(dealTimer);
-      dealTimer = null;
+      clearTableTimers();
       const { level, ...saved } = snapshot;
-      state = { ...saved, ...blinds, dealing: false, runoutFrom: null, timer: null, epoch: (state?.epoch ?? 0) + 1 };
+      bankroll = restoredBankroll;
+      state = { ...saved, ...blinds, startingStack, heroBuyIns, tableBuyIns, phase,
+        dealing: false, runoutFrom: null, timer: null, epoch: (state?.epoch ?? 0) + 1 };
       const hero = human();
       // Starszy zapis trzymał wybrany awatar gracza osobno, w ustawieniach profilu.
       if (version === 1 && heroProfile?.avatar) {
@@ -254,8 +371,10 @@ const pokerGame = (() => {
         hero.avatarSelected = true;
       } else {
         hero.avatarSelected = hero.avatarSelected === true && (pokerAvatars.isPreset(hero.avatar) || pokerAvatars.isUpload(hero.avatar));
+        if (!hero.avatarSelected) hero.avatar = null;
       }
-      pokerAvatars.fillSeatAvatars(state.players);
+      for (const bot of state.players.slice(1)) bot.avatarGender ??= profiles[bot.id].avatarGender;
+      pokerAvatars.fillBotAvatars(state.players);
       assignPositions(state);
       if (state.phase === 'betting') {
         state.handId = createId();
@@ -265,21 +384,39 @@ const pokerGame = (() => {
       continueTurn();
     }
 
-    function startHand() {
-      if (!state || state.phase === 'gameover') return;
-      if (state.timer) clearTimeout(state.timer);
-      if (dealTimer !== null) clearTimeout(dealTimer);
-      dealTimer = null;
-      state.timer = null;
-      state.epoch++;
-      const live = state.players.filter(player => player.stack > 0);
-      if (human().stack === 0 || live.length < 2) {
-        state.phase = 'gameover';
-        state.dealing = false;
-        onChange(state);
-        return;
-      }
+    function replaceBustedBots() {
+      const busted = state.players.slice(1).filter(player => player.stack === 0);
+      if (!busted.length) return [];
+      const available = availableBotProfiles(state.players);
+      const replacements = busted.map(({ id, kind, preflopStyle }) => {
+        const bot = createPlayer(takeBotProfile(available, kind), id, state.startingStack);
+        if (preflopStyle) bot.preflopStyle = preflopStyle;
+        state.players[id] = bot;
+        return bot;
+      });
+      state.tableBuyIns += replacements.length * state.startingStack;
+      pokerAvatars.fillBotAvatars(state.players, busted.map(player => player.avatar));
+      return replacements;
+    }
 
+    function startHand() {
+      if (!state || isTableClosed(state.phase)) return;
+      clearTableTimers();
+      state.epoch++;
+      const hero = human();
+      const rebuy = hero.stack === 0 ? buyInWithFunds(state.bigBlind, bankroll) : 0;
+      if (hero.stack === 0) {
+        if (!rebuy) {
+          leaveTable();
+          return;
+        }
+        bankroll -= rebuy;
+        hero.stack = rebuy;
+        state.heroBuyIns += rebuy;
+        state.tableBuyIns += rebuy;
+      }
+      const newBots = replaceBustedBots();
+      const live = state.players.filter(player => player.stack > 0);
       state.dealer = nextSeat(state.dealer, player => player.stack > 0);
       state.handId = createId();
       state.handNo++;
@@ -308,32 +445,41 @@ const pokerGame = (() => {
         player.lastAction = null;
       }
 
+      state.heroHand = { startingStack: hero.stack, actions: [] };
+      state.stats.hands++;
+
+      const inHand = player => !player.folded;
+      state.sbSeat = live.length === 2 ? state.dealer : nextSeat(state.dealer, inHand);
+      state.bbSeat = nextSeat(state.sbSeat, inHand);
+      const smallBlind = state.players[state.sbSeat];
+      const bigBlind = state.players[state.bbSeat];
+      const smallBlindPaid = chipIn(smallBlind, state.smallBlind);
+      const bigBlindPaid = chipIn(bigBlind, state.bigBlind);
+      smallBlind.lastAction = { kind: 'blind', text: 'SB ' + formatAmount(smallBlindPaid) };
+      bigBlind.lastAction = { kind: 'blind', text: 'BB ' + formatAmount(bigBlindPaid) };
+      addLog({
+        kind: 'round',
+        text: `Rozdanie #${state.handNo} · SB ${formatAmount(smallBlindPaid)} · BB ${formatAmount(bigBlindPaid)}`
+      });
+      if (rebuy) addLog({ kind: 'notice', text: `Wpisowe z bankrolla: ${formatAmount(rebuy)}` });
+      for (const bot of newBots) {
+        const posted = chipIn(bot, state.bigBlind - bot.bet);
+        bot.lastAction = { kind: 'blind', text: `BB ${formatAmount(bot.bet)}` };
+        const verb = posted === state.bigBlind ? 'wpłaca' : 'dopłaca';
+        const entry = posted ? ` i ${verb} ${formatAmount(posted)} do wejściowego BB` : ' na pozycji BB';
+        addLog({ kind: 'notice', text: `${bot.name} dołącza do stołu${entry}.` });
+      }
+
       let dealIndex = state.dealer;
       for (let round = 0; round < 2; round++) {
         for (let seat = 0; seat < live.length; seat++) {
-          dealIndex = nextSeat(dealIndex, player => player.stack > 0);
+          dealIndex = nextSeat(dealIndex, inHand);
           state.players[dealIndex].hand.push(state.deck.pop());
         }
       }
-      const hero = human();
-      state.heroHand = hero.hand.length === 2 ? { startingStack: hero.stack, actions: [] } : null;
-      if (state.heroHand) state.stats.hands++;
-
-      state.sbSeat = live.length === 2 ? state.dealer : nextSeat(state.dealer, player => player.hand.length === 2);
-      state.bbSeat = nextSeat(state.sbSeat, player => player.hand.length === 2);
       assignPositions(state);
-      const smallBlind = state.players[state.sbSeat];
-      const bigBlind = state.players[state.bbSeat];
-      chipIn(smallBlind, state.smallBlind);
-      chipIn(bigBlind, state.bigBlind);
-      smallBlind.lastAction = { kind: 'blind', text: 'SB ' + formatAmount(smallBlind.bet) };
-      bigBlind.lastAction = { kind: 'blind', text: 'BB ' + formatAmount(bigBlind.bet) };
-      state.currentBet = Math.max(smallBlind.bet, bigBlind.bet);
+      state.currentBet = eligible().length > 1 ? state.bigBlind : Math.max(...live.map(player => player.bet));
       state.actor = nextSeat(state.bbSeat, player => player.hand.length === 2 && !player.allIn);
-      addLog({
-        kind: 'round',
-        text: `Rozdanie #${state.handNo} · SB ${formatAmount(smallBlind.bet)} · BB ${formatAmount(bigBlind.bet)}`
-      });
 
       state.dealing = true;
       const handId = state.handId;
@@ -341,7 +487,7 @@ const pokerGame = (() => {
       const dealDuration = shuffle + flight + (live.length * 2 - 1) * interval + settle;
       onChange(state);
       dealTimer = setTimeout(() => {
-        if (state.handId !== handId) return;
+        if (state.phase !== 'betting' || state.handId !== handId) return;
         dealTimer = null;
         state.dealing = false;
         prepareRunout();
@@ -564,8 +710,8 @@ const pokerGame = (() => {
       state.timer = null;
       state.runoutFrom = null;
       const hero = human();
-      if (hero.stack === 0 || state.players.slice(1).every(player => player.stack === 0)) {
-        state.phase = 'gameover';
+      if (hero.stack === 0 && bankroll === 0) {
+        finishTable();
       }
       if (state.heroHand) {
         const { sessionId, handNo, dealer, sbSeat, bbSeat, board, heroHand } = state;
@@ -629,10 +775,14 @@ const pokerGame = (() => {
           return;
         }
         const player = state.players[actor];
+        const opponents = contenders().filter(other => other.id !== actor);
+        const opponent = opponents.length === 1 ? opponents[0] : null;
         const price = Math.min(Math.max(0, state.currentBet - player.bet), player.stack);
         const choice = pokerBots.chooseAction(player, {
           board: state.board,
-          opponentCount: contenders().length - 1,
+          opponentCount: opponents.length,
+          opponentStack: opponent?.stack ?? 0,
+          opponentChecked: opponent?.lastAction?.kind === 'check',
           street: state.street,
           stats: state.stats,
           heroInHand: !human().folded && human().hand.length > 0,
@@ -653,9 +803,11 @@ const pokerGame = (() => {
       return pokerBots.estimateEquity(player, state.board, contenders().length - 1, simulations);
     }
 
-    return { newGame, startHand, act, pause, resume, skipRunout, setHeroProfile, pot, minRaiseTo,
-      bigBlindsPer100, getState: () => state, estimateEquity, saveSession, restoreSession };
+    return { newGame, resetGame, changeTable, leaveTable, startHand, act, pause, resume, skipRunout, setHeroProfile, pot, minRaiseTo,
+      bigBlindsPer100, getState: () => state, estimateEquity, saveSession, restoreSession,
+      getBankroll: () => bankroll, availableBankroll };
   }
 
-  return { createGame, formatAmount, displayName, positionsForHand, wagerKind, stakes, minPlayers, maxPlayers, defaultPlayers, nextHandDelay, dealTiming, runoutTiming };
+  return { createGame, formatAmount, displayName, positionsForHand, wagerKind, stakes, minPlayers, maxPlayers, defaultPlayers,
+    nextHandDelay, dealTiming, runoutTiming, buyInFor, buyInWithFunds, startingBankroll };
 })();

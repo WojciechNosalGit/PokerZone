@@ -9,7 +9,7 @@ function createPokerProfile(dialog, onSave) {
   const name = dialog.querySelector('#profile-name');
   const file = dialog.querySelector('#profile-avatar');
   const preview = dialog.querySelector('#profile-avatar-preview');
-  const random = dialog.querySelector('#random-avatar');
+  const defaultAvatar = dialog.querySelector('#default-avatar');
   const gallery = dialog.querySelector('#profile-avatar-gallery');
   const save = dialog.querySelector('#save-profile');
   const status = dialog.querySelector('#profile-status');
@@ -27,30 +27,65 @@ function createPokerProfile(dialog, onSave) {
   }
 
   let draftAvatar = '';
-  let randomAvatar = null;
   let upload = 0;
 
-  const choices = groups.flatMap(({ label, presets }) => {
+  const rows = groups.map(({ id, label, presets }) => {
     const category = document.createElement('fieldset');
     category.className = 'profile-avatar-presets';
     const title = document.createElement('legend');
     title.textContent = label;
+    const row = document.createElement('div');
+    row.className = 'profile-avatar-row';
     const options = document.createElement('div');
     options.className = 'profile-avatar-options';
-    category.append(title, options);
-    gallery.append(category);
+    options.id = `profile-avatars-${id}`;
 
-    return presets.map(({ id: avatar, gender }, index) => {
+    const choices = presets.map(({ id: avatar, gender }, index) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'profile-avatar-option';
-      button.title = `${label}, avatar ${index + 1} (${genderLabels[gender]})`;
-      button.setAttribute('aria-label', button.title);
+      const description = `${label}, avatar ${index + 1} (${genderLabels[gender]})`;
+      button.dataset.tooltip = description;
+      button.setAttribute('aria-label', description);
       setPreset(button, avatar);
       button.addEventListener('click', () => selectAvatar(avatar));
-      options.append(button);
       return button;
     });
+    options.append(...choices);
+
+    function arrow(direction, text, symbol) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'raise-step profile-avatar-arrow';
+      button.textContent = symbol;
+      button.setAttribute('aria-label', `${label}: przewiń ${text}`);
+      button.setAttribute('aria-controls', options.id);
+      button.setAttribute('aria-disabled', 'true');
+      button.addEventListener('click', () => {
+        if (button.getAttribute('aria-disabled') === 'true') return;
+        const step = choices[1].offsetLeft - choices[0].offsetLeft;
+        const visible = Math.max(1, Math.floor(options.clientWidth / step));
+        options.scrollBy({ left: direction * visible * step });
+      });
+      return button;
+    }
+
+    const previous = arrow(-1, 'w lewo', '‹');
+    const next = arrow(1, 'w prawo', '›');
+    function updateArrows() {
+      const maxScroll = options.scrollWidth - options.clientWidth;
+      previous.setAttribute('aria-disabled', String(options.scrollLeft <= 1));
+      next.setAttribute('aria-disabled', String(options.scrollLeft >= maxScroll - 1));
+    }
+    options.addEventListener('scroll', updateArrows);
+    row.append(previous, options, next);
+    category.append(title, row);
+    gallery.append(category);
+    return { options, choices, updateArrows };
+  });
+  const choices = rows.flatMap(row => row.choices);
+  window.addEventListener('resize', () => {
+    if (dialog.open) rows.forEach(row => row.updateArrows());
   });
 
   function showStatus(message = '') {
@@ -59,8 +94,8 @@ function createPokerProfile(dialog, onSave) {
   }
 
   function updatePreview() {
-    setAvatar(preview, draftAvatar || randomAvatar);
-    random.disabled = !draftAvatar;
+    setAvatar(preview, draftAvatar);
+    defaultAvatar.disabled = !draftAvatar;
     for (const button of choices) button.setAttribute('aria-pressed', String(button.dataset.avatarPreset === draftAvatar));
   }
 
@@ -79,12 +114,16 @@ function createPokerProfile(dialog, onSave) {
     name.value = player?.name ?? profile.name;
     file.value = '';
     draftAvatar = player ? (player.avatarSelected ? player.avatar : '') : profile.avatar;
-    randomAvatar = player && !player.avatarSelected ? player.avatar : null;
     save.disabled = false;
     showStatus();
     updatePreview();
     dialog.showModal();
     form.scrollTop = 0;
+    for (const { options, choices, updateArrows } of rows) {
+      const selected = choices.find(button => button.dataset.avatarPreset === draftAvatar);
+      if (selected) options.scrollTo({ left: selected.offsetLeft - choices[0].offsetLeft, behavior: 'instant' });
+      updateArrows();
+    }
   }
 
   async function avatarThumbnail(selectedFile) {
@@ -127,7 +166,7 @@ function createPokerProfile(dialog, onSave) {
     }
   });
 
-  random.addEventListener('click', () => selectAvatar(''));
+  defaultAvatar.addEventListener('click', () => selectAvatar(''));
 
   form.addEventListener('submit', event => {
     event.preventDefault();

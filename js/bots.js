@@ -53,7 +53,7 @@ const pokerBots = (() => {
     return adjustment;
   }
 
-  function preflopTier([a, b], widerRange = false) {
+  function preflopTier([a, b], widerRange = false, lowestStakes = false, extraLoose = false) {
     const high = Math.max(a.r, b.r);
     const low = Math.min(a.r, b.r);
     const paired = high === low;
@@ -63,22 +63,34 @@ const pokerBots = (() => {
     if ((paired && high >= 6) || (broadway && (suited || high >= 13)) || (high === 14 && low >= 9)) return 2;
     if (paired || broadway || (suited && (high === 14 || (high >= 8 && high - low <= 2)))) return 1;
     if (widerRange && suited && ((high >= 5 && high - low === 1) || (high >= 11 && low >= 8))) return 1;
+    if (lowestStakes && ((high === 14 && low >= 5) || (suited && high >= 6 && high - low <= 3))) return 1;
+    if (extraLoose && (high === 14 || (high >= 8 && high - low === 1)
+      || (high >= 11 && low >= 7 && high - low <= 4))) return 1;
     return 0;
   }
 
   function preflopAction(player, { currentBet, bigBlind, lastAggressor, potSize }, { price, odds, equity, mayRaise }) {
-    const lowStakes = bigBlind === 10;
+    const lowestStakes = bigBlind === 4;
+    const midStakes = bigBlind === 10;
+    const aggressive = lowestStakes && player.preflopStyle === 'loose-aggressive';
+    const extraLoose = aggressive || (lowestStakes && player.preflopStyle === 'loose');
     const raised = lastAggressor != null || currentBet > bigBlind;
     const latePosition = ['HJ', 'CO', 'BTN', 'BTN / SB'].includes(player.position);
     const favourableSeat = latePosition || player.position === 'BB';
-    const widerRange = lowStakes && favourableSeat;
-    const tier = preflopTier(player.hand, widerRange);
+    const widerRange = lowestStakes || (midStakes && favourableSeat);
+    const tier = preflopTier(player.hand, widerRange, lowestStakes, extraLoose);
 
     if (mayRaise && tier === 3 && (!raised || (currentBet <= 6 * bigBlind && equity >= odds + 0.13))) return 'raise';
-    if (mayRaise && tier === 2 && !raised && (favourableSeat || Math.random() < 0.55)) return 'raise';
+    const tierTwoRaiseChance = aggressive ? 0.85 : lowestStakes ? 0.65 : 0.55;
+    if (mayRaise && tier === 2 && !raised && (favourableSeat || Math.random() < tierTwoRaiseChance)) return 'raise';
 
-    if (lowStakes && latePosition && tier === 1 && !raised && mayRaise && price > 0 && potSize <= 3 * bigBlind) {
-      const openingChance = player.kind === 'tight' ? 0.40 : player.kind === 'loose' ? 0.68 : 0.54;
+    if ((lowestStakes || (midStakes && latePosition)) && tier === 1 && !raised && mayRaise
+      && price > 0 && potSize <= (aggressive ? 4 : 3) * bigBlind) {
+      let openingChance = player.kind === 'tight' ? 0.40 : player.kind === 'loose' ? 0.68 : 0.54;
+      if (lowestStakes) {
+        openingChance = latePosition ? openingChance + (aggressive ? 0.20 : 0.08)
+          : aggressive ? 0.43 : extraLoose ? 0.24 : 0.12;
+      }
       if (Math.random() < openingChance) return 'raise';
     }
 
@@ -87,9 +99,10 @@ const pokerBots = (() => {
     if (tier === 3) return equity >= odds + 0.02 ? 'call' : 'fold';
     if (tier === 2) return price <= 5 * bigBlind && equity >= odds + 0.075 ? 'call' : 'fold';
 
-    const maxPrice = (favourableSeat ? 2 : 1) * bigBlind;
-    const maxOdds = widerRange ? 0.30 : favourableSeat ? 0.25 : 0.19;
-    const equityMargin = widerRange ? 0.06 : 0.085;
+    const basePrice = favourableSeat ? 2 : 1;
+    const maxPrice = (basePrice + (extraLoose ? 1 : lowestStakes ? 0.5 : 0)) * bigBlind;
+    const maxOdds = extraLoose ? 0.33 : lowestStakes ? 0.31 : widerRange ? 0.30 : favourableSeat ? 0.25 : 0.19;
+    const equityMargin = extraLoose ? 0.035 : lowestStakes ? 0.05 : widerRange ? 0.06 : 0.085;
     return price <= maxPrice && odds <= maxOdds && equity >= odds + equityMargin ? 'call' : 'fold';
   }
 
@@ -132,8 +145,8 @@ const pokerBots = (() => {
     return (flushDraw ? 9 : 0) + outs.size * (flushDraw ? 3 : 4);
   }
 
-  function bettingRangeWeight(hand, board, boardScore, odds, widerPreflop) {
-    if (!board.length) return [0.10, 0.30, 0.72, 1][preflopTier(hand, widerPreflop)];
+  function bettingRangeWeight(hand, board, boardScore, odds, bigBlind) {
+    if (!board.length) return [0.10, 0.30, 0.72, 1][preflopTier(hand, bigBlind <= 10, bigBlind === 4)];
     const strength = madeStrength(hand, board, boardScore);
     if (strength === 3) return 1;
     const largeBet = odds >= 0.28;
@@ -141,6 +154,18 @@ const pokerBots = (() => {
     if (strength === 1) return largeBet ? 0.24 : 0.55;
     if (drawOuts(hand, board, strength) >= 8) return largeBet ? 0.36 : 0.60;
     return largeBet ? 0.07 : 0.16;
+  }
+
+  function bluffAtHighestStakes(player, table, outs, equity) {
+    const { opponentCount, opponentStack, opponentChecked, potSize, bigBlind, board } = table;
+    const effectiveStack = Math.min(player.stack, opponentStack ?? 0);
+    if (opponentCount !== 1 || effectiveStack < Math.max(bigBlind * 2, potSize * 0.65)) return false;
+
+    const tight = player.kind === 'tight';
+    if (outs >= 8) return Math.random() < (tight ? 0.19 : 0.33) + (opponentChecked ? 0.08 : 0);
+    if (board.length !== 5 || !opponentChecked || equity > 0.27) return false;
+    const flushBlocker = player.hand.some(card => card.r >= 12 && board.filter(shared => shared.s === card.s).length >= 3);
+    return flushBlocker && Math.random() < (tight ? 0.12 : 0.22);
   }
 
   function postflopAction(player, table, { price, odds, equity, mayRaise, boardScore }) {
@@ -166,8 +191,10 @@ const pokerBots = (() => {
       return mayRaise && value && Math.random() < (tight ? 0.34 : 0.48) ? 'raise' : 'call';
     }
 
-    const semiBluff = !strength && outs >= 8 && opponentCount === 1 && Math.random() < (tight ? 0.03 : 0.09);
-    return mayRaise && ((value && Math.random() < (tight ? 0.60 : 0.76)) || semiBluff) ? 'raise' : 'check';
+    const bluff = table.bigBlind === 20
+      ? mayRaise && !strength && bluffAtHighestStakes(player, table, outs, equity)
+      : !strength && outs >= 8 && opponentCount === 1 && Math.random() < (tight ? 0.03 : 0.09);
+    return mayRaise && ((value && Math.random() < (tight ? 0.60 : 0.76)) || bluff) ? 'raise' : 'check';
   }
 
   function chooseAction(player, table) {
@@ -180,7 +207,7 @@ const pokerBots = (() => {
     const mayRaise = player.canRaise && maxRaiseTo > currentBet && maxRaiseTo >= minRaiseTo;
     // Jedna losowana ręka reprezentuje gracza, który postawił obserwowany zakład.
     const opponentWeight = price && table.lastAggressor != null && table.lastAggressor !== player.id
-      ? hand => bettingRangeWeight(hand, board, boardScore, odds, bigBlind === 10) : undefined;
+      ? hand => bettingRangeWeight(hand, board, boardScore, odds, bigBlind) : undefined;
     const equity = estimateEquity(player, board, opponentCount, preflop ? 160 : 210, randomIndex, opponentWeight);
     const analysis = { equity, potOdds: odds };
     const decision = { price, odds, equity, mayRaise, boardScore };
