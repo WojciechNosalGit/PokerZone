@@ -1431,6 +1431,7 @@ dialog.zone-surface::after {
 }
 
 .profile-dialog {
+  --profile-header-overlap: 30px;
   padding: 0;
   overflow: hidden;
   border-color: #2f738b;
@@ -1443,6 +1444,8 @@ dialog.zone-surface::after {
 }
 
 .profile-header {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
@@ -1473,44 +1476,48 @@ dialog.zone-surface::after {
 }
 
 .profile-dialog .profile-form {
+  isolation: isolate;
+  container-type: inline-size;
   min-block-size: 0;
-  padding: 14px 16px 16px;
+  margin-block-start: calc(-1 * var(--profile-header-overlap));
+  padding: 0 16px 16px;
+  scroll-padding-block-start: var(--profile-header-overlap);
   overflow: auto;
 }
 
 .profile-intro {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "intro";
-}
-
-.profile-intro > * {
-  grid-area: intro;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
 }
 
 .profile-name-field {
-  align-self: start;
-  inline-size: calc(100% / 3);
-  z-index: 1;
+  display: grid;
+  justify-items: center;
+  margin-block-start: var(--profile-header-overlap);
+  text-align: center;
 }
 
 .profile-name-field label {
-  inline-size: max-content;
+  font-size: clamp(12px, 3.6vw, 15px);
 }
 
 .profile-form input[type="text"] {
+  inline-size: min(100%, calc(100cqi / 3));
   padding-inline: 7px;
   font-size: clamp(13px, 3.5vw, 15px);
 }
 
 #profile-avatar-preview {
   position: relative;
+  z-index: -1;
   inset: auto;
   place-self: start end;
-  inline-size: min(65%, var(--avatar-native-size, 346px));
+  inline-size: min(65cqi, var(--avatar-native-size, 346px));
   block-size: auto;
   aspect-ratio: 1;
-  margin: -16px -16px -18px 0;
+  margin-inline-end: -16px;
+  margin-block-end: clamp(-54px, -9cqi, -48px);
 }
 
 #profile-avatar-preview.custom-avatar {
@@ -1518,10 +1525,13 @@ dialog.zone-surface::after {
 }
 
 .profile-avatar-heading {
-  place-self: end start;
   margin: 0;
   color: #e7f5fa;
   font-size: 1rem;
+}
+
+#profile-avatar-gallery > :first-child {
+  margin-block-start: 4px;
 }
 
 @media (min-width: 761px) {
