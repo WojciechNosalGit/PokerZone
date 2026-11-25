@@ -73,6 +73,7 @@
     profile.open(game.getState()?.players[0]);
   }
   const openSetup = bindPokerMenu(menuButton, setup, game, effects, openProfile);
+  bindPokerTutorial(document.querySelector('#poker-tutorial'), setup);
   leaveTableAction.querySelector('#leaveTable').addEventListener('click', game.leaveTable);
   profileDialog.addEventListener('close', () => {
     if (profileDialog.open) return;

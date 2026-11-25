@@ -454,6 +454,127 @@ body {
   color: #ffda88;
 }
 
+.tutorial-choice {
+  border-color: #43939d;
+  background: #12323b;
+  color: #b9f2e9;
+}
+
+.tutorial-choice:hover {
+  background: #1a4750;
+}
+
+#poker-tutorial {
+  width: min(560px, calc(100% - 28px));
+}
+
+.tutorial-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  margin-block-end: 9px;
+}
+
+.tutorial-heading h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.tutorial-heading span,
+.tutorial-seat-name {
+  color: #c4ecea;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tutorial-felt {
+  height: auto;
+  gap: 9px;
+  padding: 14px 8px;
+}
+
+.tutorial-seat {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  inline-size: 100%;
+  text-align: center;
+}
+
+.tutorial-seat-name {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #102a34;
+}
+
+.tutorial-seat .tutorial-speech {
+  --chat-tail: 50%;
+  position: relative;
+  max-inline-size: min(100%, 360px);
+  margin: 0 0 6px;
+}
+
+.tutorial-pocket .card {
+  --face-rank: 18px;
+  --face-suit: 9px;
+  width: 32px;
+  height: 44px;
+  padding: 3px;
+  border-radius: 5px;
+}
+
+.tutorial-pot {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-block-end: 6px;
+  color: #bdf0e8;
+  font-size: 13px;
+}
+
+.tutorial-pot strong,
+.tutorial-amount output {
+  color: var(--zone-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.tutorial-best-card {
+  outline: 2px solid var(--zone-gold);
+  outline-offset: 1px;
+}
+
+.tutorial-prompt {
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+.tutorial-amount {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4ch;
+  gap: 3px 8px;
+  align-items: center;
+}
+
+.tutorial-amount label {
+  grid-column: 1 / -1;
+  font-weight: 650;
+}
+
+.tutorial-amount input {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--zone-gold);
+}
+
+.tutorial-actions .zone-art-button {
+  flex: 1;
+  min-width: 0;
+  padding-inline: clamp(6px, 2.5vw, 14px);
+  text-align: center;
+}
+
 .stake-choice[aria-disabled="true"] {
   cursor: default;
   color: #9aabb3;

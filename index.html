@@ -23,6 +23,7 @@
   <script defer src="js/menu.js"></script>
   <script defer src="js/tooltips.js"></script>
   <script defer src="js/chat.js"></script>
+  <script defer src="js/tutorial.js"></script>
   <script defer src="js/main.js"></script>
 </head>
 <body>
@@ -71,7 +72,9 @@
         <fieldset class="setup-stakes">
           <legend>Stawki</legend>
           <input type="hidden" id="setup-stakes" name="bigBlind">
-          <div class="stake-options" id="setup-stake-options"></div>
+          <div class="stake-options" id="setup-stake-options">
+            <button class="stake-choice tutorial-choice" id="setup-tutorial" type="button" aria-haspopup="dialog" aria-controls="poker-tutorial">Samouczek</button>
+          </div>
         </fieldset>
         <fieldset class="setup-buy-in">
           <legend id="setup-buy-in-label">Wpisowe</legend>
@@ -186,6 +189,13 @@
     <div class="setup-controls">
       <button class="zone-art-button zone-start-game" type="button" id="acknowledgeLoss" autofocus>Rozpocznij nową grę</button>
     </div>
+  </dialog>
+  <dialog class="setup-dialog zone-dialog zone-surface" id="poker-tutorial" aria-labelledby="tutorial-title">
+    <header class="zone-dialog-heading">
+      <h2 id="tutorial-title">Samouczek</h2>
+      <button class="reset zone-close" id="close-tutorial" type="button" aria-label="Zamknij samouczek">×</button>
+    </header>
+    <div id="tutorial-step"></div>
   </dialog>
   <div class="zone-tooltip" id="poker-tooltip" role="tooltip" popover="manual" hidden></div>
 </body>
