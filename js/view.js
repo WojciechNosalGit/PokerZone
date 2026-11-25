@@ -249,10 +249,7 @@ const pokerView = (() => {
     ${presets.map(([label, amount], index) => `<button type="button" ${preflop && index === 2 ? 'id="raiseBlindPreset"' : ''} data-raise-to="${amount}" aria-pressed="false" ${canRaise && amount >= lowerLimit && amount <= max ? '' : 'disabled'}>${label}</button>`).join('')}
    </div>
   </div><div class="action-grid${complete ? ' round-complete' : ''}${outgoing ? ' round-transition' : ''}${returning ? ' round-start' : ''}">
-   <div class="fold-controls" ${concealed}>
-    <button class="fold" id="fold" ${canAct ? '' : 'disabled'}>Fold</button>
-    <button class="auto-fold" id="autoFold" aria-label="Auto Fold" aria-pressed="${state.autoFold}" data-tooltip="Spasuj przy najbliższej okazji" ${active ? '' : 'disabled'}>Auto</button>
-   </div>
+   <button class="fold" id="fold" aria-pressed="${state.foldPending}" data-tooltip="Spasuj, gdy nadejdzie Twoja kolej." ${active ? '' : 'disabled'} ${concealed}>Fold<span class="fold-pending-indicator" aria-hidden="true">✓</span></button>
    <button class="call" id="call" ${canAct ? '' : 'disabled'} ${concealed}>${escapeHTML(callLabel)}</button>
    <button class="raise" id="raise" ${canRaise ? '' : 'disabled'} ${concealed}>${escapeHTML(raiseLabel)}</button>
    ${replacement}
@@ -321,12 +318,9 @@ const pokerView = (() => {
           if (game.getState().phase === 'finished') game.startHand();
         });
       }
-      if (turn) {
-        find('#fold').addEventListener('click', () => game.act(0, { type: 'fold' }));
-        find('#call').addEventListener('click', () => game.act(0, { type: 'call' }));
-      }
-      const autoFold = find('#autoFold');
-      autoFold.addEventListener('click', () => autoFold.setAttribute('aria-pressed', String(game.toggleAutoFold())));
+      if (turn) find('#call').addEventListener('click', () => game.act(0, { type: 'call' }));
+      const fold = find('#fold');
+      fold.addEventListener('click', () => fold.setAttribute('aria-pressed', String(game.requestFold())));
 
       const raise = find('#raise');
       if (raise.disabled) return;
@@ -411,7 +405,7 @@ const pokerView = (() => {
       }
       const sameSession = previousSessionId === state.sessionId;
       const logScroll = sameSession ? find('.log')?.scrollTop ?? 0 : 0;
-      const focusedControl = ['#showAnalysis', '#table-profile', '#write-chat', '#skip-runout', '#autoFold'].find(selector => {
+      const focusedControl = ['#showAnalysis', '#table-profile', '#write-chat', '#skip-runout', '#fold'].find(selector => {
         const control = find(selector);
         return control && control === document.activeElement;
       });

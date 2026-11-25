@@ -681,12 +681,8 @@ button:disabled {
   min-inline-size: 0;
 }
 
-.action-grid > .fold-controls {
+.action-grid > .fold {
   grid-column: 1;
-  grid-row: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px;
 }
 
 .action-grid > .call {
@@ -720,7 +716,7 @@ button:disabled {
   line-height: 1.15;
 }
 
-.action-grid.round-complete > :is(.fold-controls, .call, .raise) {
+.action-grid.round-complete > :is(.fold, .call, .raise) {
   visibility: hidden;
   pointer-events: none;
 }
@@ -735,7 +731,7 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .action-grid.round-transition > :is(.fold-controls, .call, .raise) {
+  .action-grid.round-transition > :is(.fold, .call, .raise) {
     animation: action-exit 165ms ease-in both;
   }
 
@@ -747,7 +743,7 @@ button:disabled {
     animation: action-enter 220ms 165ms ease-out both;
   }
 
-  .action-grid.round-start > :is(.fold-controls, .call, .raise) {
+  .action-grid.round-start > :is(.fold, .call, .raise) {
     animation: action-enter 175ms 120ms ease-out both;
   }
 }

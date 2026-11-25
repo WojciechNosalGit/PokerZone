@@ -152,7 +152,7 @@ const pokerGame = (() => {
       heroHand: null,
       handVpip: false,
       handPfr: false,
-      autoFold: false,
+      foldPending: false,
       dealing: false,
       runoutFrom: null,
       timer: null,
@@ -196,7 +196,7 @@ const pokerGame = (() => {
       clearTableTimers();
       finishTable(availableBankroll() === 0 ? 'gameover' : 'left');
       state.actor = -1;
-      state.autoFold = false;
+      state.foldPending = false;
       state.dealing = false;
       state.runoutFrom = null;
       onChange(state);
@@ -309,7 +309,7 @@ const pokerGame = (() => {
     }
 
     function saveSession() {
-      const { timer, epoch, dealing, runoutFrom, autoFold, ...snapshot } = state;
+      const { timer, epoch, dealing, runoutFrom, foldPending, ...snapshot } = state;
       return JSON.stringify({ version: 3, bankroll, snapshot });
     }
 
@@ -379,7 +379,7 @@ const pokerGame = (() => {
       clearTableTimers();
       const { level, ...saved } = snapshot;
       bankroll = restoredBankroll;
-      state = { ...saved, ...blinds, startingStack, heroBuyIns, rebuyTarget, tableBuyIns, phase, autoFold: false,
+      state = { ...saved, ...blinds, startingStack, heroBuyIns, rebuyTarget, tableBuyIns, phase, foldPending: false,
         dealing: false, runoutFrom: null, timer: null, epoch: (state?.epoch ?? 0) + 1 };
       const hero = human();
       // Starszy zapis trzymał wybrany awatar gracza osobno, w ustawieniach profilu.
@@ -449,7 +449,7 @@ const pokerGame = (() => {
       state.summary = '';
       state.handVpip = false;
       state.handPfr = false;
-      state.autoFold = false;
+      state.foldPending = false;
 
       for (const player of state.players) {
         player.hand = [];
@@ -528,11 +528,11 @@ const pokerGame = (() => {
       if (field) state.stats[field]++;
     }
 
-    function toggleAutoFold() {
+    function requestFold() {
       if (paused || state?.phase !== 'betting' || human().hand.length !== 2 || human().folded || human().allIn) return false;
-      state.autoFold = !state.autoFold;
-      if (state.autoFold) continueTurn();
-      return state.autoFold;
+      state.foldPending = !state.foldPending;
+      if (state.foldPending) continueTurn();
+      return state.foldPending;
     }
 
     function act(actorIndex, choice) {
@@ -599,7 +599,7 @@ const pokerGame = (() => {
         state.timer = null;
       }
       if (actorIndex === 0) {
-        state.autoFold = false;
+        state.foldPending = false;
         markHumanAction(type, need, player.contributed - contributedBefore, context);
       }
       player.acted = true;
@@ -736,7 +736,7 @@ const pokerGame = (() => {
       state.timer = null;
       state.runoutFrom = null;
       const hero = human();
-      state.autoFold = false;
+      state.foldPending = false;
       if (hero.stack === 0 && bankroll === 0) {
         finishTable();
       }
@@ -790,7 +790,7 @@ const pokerGame = (() => {
       }
       if (state.phase !== 'betting' || state.timer !== null) return;
       if (state.actor === 0) {
-        if (state.autoFold) act(0, { type: 'fold' });
+        if (state.foldPending) act(0, { type: 'fold' });
         return;
       }
       const actor = state.actor;
@@ -834,7 +834,7 @@ const pokerGame = (() => {
       return pokerBots.estimateEquity(player, state.board, contenders().length - 1, simulations);
     }
 
-    return { newGame, resetGame, changeTable, leaveTable, startHand, act, toggleAutoFold, pause, resume, skipRunout, setHeroProfile, pot, minRaiseTo,
+    return { newGame, resetGame, changeTable, leaveTable, startHand, act, requestFold, pause, resume, skipRunout, setHeroProfile, pot, minRaiseTo,
       bigBlindsPer100, getState: () => state, estimateEquity, saveSession, restoreSession,
       getBankroll: () => bankroll, availableBankroll };
   }

@@ -2,12 +2,10 @@
 
 function createPokerChat(root, dialog, game) {
   const botLines = {
-    check: ['Zobaczmy, co dalej.', 'Check ode mnie.'],
-    call: ['Dobra, sprawdzam.', 'Jeszcze jestem w grze.'],
-    bet: ['Sprawdźmy, kto zostaje.', 'Co powiecie na tyle?'],
-    raise: ['Podkręćmy stawkę.', 'Trochę więcej.'],
-    fold: ['To rozdanie odpuszczam.', 'Poczekam na następne.'],
-    'all-in': ['Wszystko na środek.', 'Gram o cały stack.']
+    win: ['Uff, udało się!', 'Tym razem pula dla mnie.', 'Dobre rozdanie!'],
+    loss: ['O, blisko było!', 'Ładnie rozegrane.', 'Tym razem się nie udało.'],
+    even: ['Wychodzę na zero.', 'Po tym rozdaniu jestem na równo.'],
+    fold: ['Tym razem odpuszczam.', 'Spróbuję w następnym.', 'Zobaczymy, co przyniesie następne.']
   };
   const form = dialog.querySelector('form');
   const input = dialog.querySelector('textarea');
@@ -16,8 +14,8 @@ function createPokerChat(root, dialog, game) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const messages = new Map();
   let sessionId;
-  let latestLog;
-  let lastBotLine = -Infinity;
+  let commentedHand;
+  let lastSpeaker;
 
   function clearMessage(seat) {
     const message = messages.get(seat);
@@ -64,28 +62,39 @@ function createPokerChat(root, dialog, game) {
     ], { duration: 160, easing: 'ease-out' });
   }
 
-  function onChange(state, { restored = false } = {}) {
+  function commentOnResult(state, payouts) {
+    const bots = state.players.slice(1).filter(player => player.hand.length === 2);
+    const contenders = bots.filter(player => !player.folded);
+    const candidates = contenders.length ? contenders : bots;
+    if (!candidates.length) return;
+    const alternatives = candidates.filter(player => player.id !== lastSpeaker);
+    const speakers = alternatives.length ? alternatives : candidates;
+    const speaker = speakers[pokerCards.randomIndex(speakers.length)];
+    const payout = payouts.find(([seat]) => seat === speaker.id)?.[1] ?? 0;
+    const net = payout - speaker.contributed;
+    const outcome = speaker.folded ? 'fold' : net > 0 ? 'win' : net < 0 ? 'loss' : 'even';
+    const lines = botLines[outcome];
+    clearMessage(lastSpeaker);
+    lastSpeaker = speaker.id;
+    publish(speaker, lines[pokerCards.randomIndex(lines.length)]);
+  }
+
+  function onChange(state, { restored = false, payouts = [] } = {}) {
     if (sessionId !== state?.sessionId || state?.phase === 'left') {
       for (const seat of messages.keys()) clearMessage(seat);
       sessionId = state?.sessionId;
-      latestLog = undefined;
-      lastBotLine = -Infinity;
+      commentedHand = undefined;
+      lastSpeaker = undefined;
     }
     if (!state || state.phase === 'left') return;
     for (const [seat, message] of messages) {
       if (state.players[seat]?.name === message.name) positionMessage(seat, message);
       else clearMessage(seat);
     }
-    const entry = state.logs[0];
-    if (entry === latestLog) return;
-    latestLog = entry;
-    const kind = entry?.action?.kind;
-    const lines = botLines[kind];
-    const speaker = state.players[entry?.playerId];
-    if (restored || !speaker || speaker.id === 0 || !lines || Date.now() - lastBotLine < 4300) return;
-    if (kind !== 'all-in' && Math.random() >= 0.25) return;
-    lastBotLine = Date.now();
-    publish(speaker, lines[pokerCards.randomIndex(lines.length)]);
+    if (!restored && payouts.length && state.handNo !== commentedHand) {
+      commentedHand = state.handNo;
+      commentOnResult(state, payouts);
+    }
   }
 
   function updateDraft() {
