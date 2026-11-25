@@ -383,6 +383,11 @@ dialog.zone-surface::after {
     rotate: 17deg;
     -webkit-text-stroke: 1px #b998ed54;
   }
+
+  #game-setup > .dialog-motifs::after {
+    inset-inline-start: -0.09em;
+    font-size: clamp(205px, 70cqi, 350px);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
