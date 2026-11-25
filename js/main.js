@@ -113,10 +113,11 @@
     if (headerBalance.textContent !== amount) headerBalance.textContent = amount;
   }
 
-  function updateSetupProfile({ name, avatar }) {
-    setupProfile.textContent = name;
-    setupProfile.setAttribute('aria-label', `Wyświetl profil gracza ${name}`);
-    pokerAvatars.setAvatar(setupPortrait, avatar);
+  function updateSetupProfile(player) {
+    const nickname = pokerProfileNickname(player);
+    setupProfile.textContent = nickname || 'Podaj nick';
+    setupProfile.setAttribute('aria-label', nickname ? `Wyświetl profil gracza ${nickname}` : setupProfile.textContent);
+    pokerAvatars.setAvatar(setupPortrait, player.avatar);
   }
 
   function applyProfile(value) {

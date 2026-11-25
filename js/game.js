@@ -211,8 +211,8 @@ const pokerGame = (() => {
       state.runoutFrom = state.street;
     }
 
-    function setHeroProfile({ name, avatar }) {
-      heroProfile = { name, avatar: pokerAvatars.isPreset(avatar) || pokerAvatars.isUpload(avatar) ? avatar : '' };
+    function setHeroProfile({ name, nameSelected, avatar }) {
+      heroProfile = { name, nameSelected, avatar: pokerAvatars.isPreset(avatar) || pokerAvatars.isUpload(avatar) ? avatar : '' };
       if (state) applyHeroProfile();
     }
 
@@ -220,6 +220,7 @@ const pokerGame = (() => {
       if (!heroProfile) return;
       const player = human();
       player.name = heroProfile.name;
+      player.nameSelected = heroProfile.nameSelected;
       player.avatar = heroProfile.avatar || null;
       player.avatarSelected = Boolean(heroProfile.avatar);
     }

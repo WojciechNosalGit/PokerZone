@@ -1,8 +1,14 @@
 'use strict';
 
+function pokerProfileNickname({ name, nameSelected }) {
+  const nickname = typeof name === 'string' ? name.trim().slice(0, 24) : '';
+  const hasName = nameSelected ?? (nickname !== 'Ty');
+  return hasName ? nickname : '';
+}
+
 function createPokerProfile(dialog, onSave) {
   const storageKey = 'poker-lab-player-profile';
-  const normalizeName = value => (typeof value === 'string' ? value.trim().slice(0, 24) : '') || 'Ty';
+  const profileWithNickname = (nickname, avatar) => ({ name: nickname || 'Ty', nameSelected: Boolean(nickname), avatar });
   const { groups, isPreset, isUpload, setPreset, setAvatar } = pokerAvatars;
   const genderLabels = { male: 'męski', female: 'żeński', neutral: 'neutralny' };
   const form = dialog.querySelector('#profile-form');
@@ -13,14 +19,12 @@ function createPokerProfile(dialog, onSave) {
   const gallery = dialog.querySelector('#profile-avatar-gallery');
   const save = dialog.querySelector('#save-profile');
   const status = dialog.querySelector('#profile-status');
-  let profile = { name: 'Ty', avatar: '' };
+  let profile = profileWithNickname('', '');
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     if (saved) {
-      profile = {
-        name: normalizeName(saved.name),
-        avatar: isPreset(saved.avatar) || isUpload(saved.avatar) ? saved.avatar : ''
-      };
+      const avatar = isPreset(saved.avatar) || isUpload(saved.avatar) ? saved.avatar : '';
+      profile = profileWithNickname(pokerProfileNickname(saved), avatar);
     }
   } catch {
     // Ustawienia domyślne są dostępne również przy niedostępnym zapisie.
@@ -111,7 +115,7 @@ function createPokerProfile(dialog, onSave) {
   function open(player) {
     if (dialog.open) return;
     upload++;
-    name.value = player?.name ?? profile.name;
+    name.value = pokerProfileNickname(player ?? profile);
     file.value = '';
     draftAvatar = player ? (player.avatarSelected ? player.avatar : '') : profile.avatar;
     save.disabled = false;
@@ -171,7 +175,7 @@ function createPokerProfile(dialog, onSave) {
   form.addEventListener('submit', event => {
     event.preventDefault();
     if (save.disabled) return;
-    const updated = { name: normalizeName(name.value), avatar: draftAvatar };
+    const updated = profileWithNickname(pokerProfileNickname({ name: name.value, nameSelected: true }), draftAvatar);
     try {
       localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch {

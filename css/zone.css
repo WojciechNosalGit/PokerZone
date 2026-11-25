@@ -484,6 +484,11 @@ dialog.zone-surface::after {
   text-overflow: ellipsis;
 }
 
+.setup-account .setup-profile {
+  padding-inline: 4px;
+  font-size: clamp(12px, 3.9vw, 15px);
+}
+
 .setup-help,
 .setup-stakes,
 .setup-buy-in,
