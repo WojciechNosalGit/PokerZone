@@ -674,24 +674,25 @@ dialog.zone-surface::after {
 
 .tutorial-coach h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 1.125rem;
 }
 
 .tutorial-coach span {
   color: #c4ecea;
-  font-size: 12px;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
 .tutorial-coach p {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 1rem;
+  line-height: 1.45;
 }
 
 .tutorial-coach button {
   margin-block-start: 7px;
-  min-height: 33px;
-  font-size: 13px;
+  min-height: 36px;
+  font-size: 0.875rem;
 }
 
 .tutorial-coach[data-guided] + .table-footer .action-grid > :is(.call, .fold, .raise):enabled {
@@ -708,8 +709,8 @@ dialog.zone-surface::after {
     position: absolute;
     z-index: 5;
     inset-block-start: 32%;
-    inset-inline-start: clamp(18px, 4vw, 52px);
-    width: min(23%, 225px);
+    inset-inline-start: clamp(18px, 3vw, 40px);
+    width: min(25%, 285px);
   }
 }
 
@@ -723,7 +724,7 @@ dialog.zone-surface::after {
   --overview-offset: calc(var(--corner-inset) + var(--spotlight-height, 36px) + 13px);
   position: absolute;
   z-index: 5;
-  inline-size: min(253px, calc(100% - 2 * var(--corner-inset)));
+  inline-size: min(290px, calc(100% - 2 * var(--corner-inset)));
   border-color: #ad8348;
 }
 
@@ -836,6 +837,12 @@ dialog.zone-surface::after {
   overflow-wrap: anywhere;
   white-space: pre-line;
   pointer-events: none;
+}
+
+.tutorial-active .seat-chat-bubble:not(.seat-chat-reaction) {
+  max-inline-size: min(236px, 72cqi);
+  font-size: 0.9375rem;
+  line-height: 1.42;
 }
 
 .seat-chat-bubble::after {
