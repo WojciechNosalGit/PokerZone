@@ -424,15 +424,33 @@ dialog.zone-surface::after {
 }
 
 .zone-close {
+  position: relative;
+  flex: none;
   margin-inline-start: auto;
   width: 38px;
-  min-height: 36px;
+  height: 38px;
   padding: 0;
   border-color: #3a788d;
   border-radius: 6px;
   background: #142f3d;
-  font-size: 25px;
-  line-height: 1;
+}
+
+.zone-close::before,
+.zone-close::after {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  inline-size: 15px;
+  block-size: 2.5px;
+  border-radius: 2px;
+  background: currentColor;
+  translate: -50% -50%;
+  rotate: 45deg;
+  pointer-events: none;
+}
+
+.zone-close::after {
+  rotate: -45deg;
 }
 
 #game-setup {
@@ -507,7 +525,6 @@ dialog.zone-surface::after {
 }
 
 .setup-heading .zone-close {
-  flex: none;
   margin-inline-start: 0;
 }
 
@@ -616,10 +633,6 @@ dialog.zone-surface::after {
 #hand-guide[open] {
   display: flex;
   flex-direction: column;
-}
-
-#hand-guide .zone-close {
-  flex: 0 0 38px;
 }
 
 .hand-guide-body {
@@ -1092,10 +1105,6 @@ dialog.zone-surface::after {
 
 :is(#session-dialog, #confirm-dialog) {
   width: min(460px, calc(100% - 28px));
-}
-
-#session-dialog .zone-close {
-  flex: none;
 }
 
 #session-form .zone-field:not([hidden]) + .zone-field:not([hidden]) {
