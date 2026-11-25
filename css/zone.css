@@ -304,6 +304,8 @@ dialog.zone-surface::after {
   container: dialog-motifs / size;
   border-radius: inherit;
   clip-path: var(--zone-outline, none);
+  background: radial-gradient(ellipse closest-side, #5bc5d12b, #278fa71a 52%, transparent)
+      center / min(80%, 370px) min(76%, 300px) no-repeat;
   pointer-events: none;
 }
 
