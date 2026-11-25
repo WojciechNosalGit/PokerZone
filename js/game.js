@@ -78,7 +78,7 @@ const pokerGame = (() => {
     for (const player of state.players) player.position = positions.get(player.id) ?? null;
   }
 
-  const displayName = player => player.id === 0 ? player.name : (player.position ?? '—');
+  const displayName = player => player.kind === 'human' || player.id === 0 ? player.name : (player.position ?? '—');
   const wagerKind = state => state.street !== 'preflop' && state.currentBet === 0 ? 'bet' : 'raise';
 
   function availableBotProfiles(players) {
@@ -162,7 +162,8 @@ const pokerGame = (() => {
 
   function createGame(onChange, onHandFinished = () => {}, onAction = () => {}, rules = {}) {
     let state = null;
-    let bankroll = startingBankroll;
+    const initialFunds = rules.startingBankroll ?? startingBankroll;
+    let bankroll = initialFunds;
     let paused = false;
     let dealTimer = null;
     let heroProfile;
@@ -258,13 +259,13 @@ const pokerGame = (() => {
     }
 
     function newGame({ playerCount = defaultPlayers, bigBlind = stakes[0].bigBlind, buyIn } = {}) {
-      startTable(playerCount, bigBlind, startingBankroll, buyIn);
+      startTable(playerCount, bigBlind, initialFunds, buyIn);
     }
 
     function resetGame() {
       clearTableTimers();
       state = null;
-      bankroll = startingBankroll;
+      bankroll = initialFunds;
       onChange(state);
     }
 
@@ -288,6 +289,7 @@ const pokerGame = (() => {
       bankroll = availableFunds - buyIn;
       state = nextTable;
       applyHeroProfile();
+      rules.preparePlayers?.(state.players);
       pokerAvatars.fillBotAvatars(state.players);
       addLog({ kind: 'notice', text: `Nowa sesja · ${playerCount} graczy · NL ${blinds.smallBlind}/${blinds.bigBlind} · Wpisowe: ${formatAmount(buyIn)}` });
       startHand();
@@ -536,9 +538,9 @@ const pokerGame = (() => {
     }
 
     function act(actorIndex, choice) {
-      if (paused || state?.phase !== 'betting' || state.dealing || actorIndex < 0 || state.actor !== actorIndex) return;
+      if (paused || state?.phase !== 'betting' || state.dealing || actorIndex < 0 || state.actor !== actorIndex) return false;
       const player = state.players[actorIndex];
-      if (player.folded || player.allIn) return;
+      if (player.folded || player.allIn) return false;
 
       const need = Math.max(0, state.currentBet - player.bet);
       const contributedBefore = player.contributed;
@@ -562,16 +564,16 @@ const pokerGame = (() => {
         const chips = chipIn(player, need);
         caption = (player.allIn ? 'Call all-in ' : 'Call ') + formatAmount(chips);
       } else if (type === 'call' || type === 'check') {
-        if (need !== 0) return;
+        if (need !== 0) return false;
         type = 'check';
         caption = 'Check';
       } else if (type === 'raise') {
-        if (!player.canRaise) return;
+        if (!player.canRaise) return false;
         const max = player.bet + player.stack;
         const target = Math.floor(Number(choice.target));
-        if (!Number.isFinite(target) || target <= state.currentBet || target > max) return;
+        if (!Number.isFinite(target) || target <= state.currentBet || target > max) return false;
         // Podbicie poniżej minimum jest możliwe przy postawieniu wszystkich żetonów.
-        if (target < minRaiseTo() && target !== max) return;
+        if (target < minRaiseTo() && target !== max) return false;
 
         wager = wagerKind(state);
         const oldBet = state.currentBet;
@@ -591,7 +593,7 @@ const pokerGame = (() => {
         }
         caption = (player.allIn ? 'All-in ' : wager === 'bet' ? 'Bet ' : 'Raise to ') + formatAmount(state.currentBet);
       } else {
-        return;
+        return false;
       }
 
       if (state.timer !== null) {
@@ -609,13 +611,14 @@ const pokerGame = (() => {
 
       if (contenders().length === 1) {
         awardWithoutShowdown();
-        return;
+        return true;
       }
       const roundComplete = eligible().every(other => other.acted && other.bet === state.currentBet);
       state.actor = roundComplete ? -1 : nextSeat(actorIndex, other => other.hand.length === 2 && !other.folded && !other.allIn);
       prepareRunout();
       onChange(state);
       continueTurn();
+      return true;
     }
 
     function dealNextStreet() {
@@ -737,7 +740,7 @@ const pokerGame = (() => {
       state.runoutFrom = null;
       const hero = human();
       state.foldPending = false;
-      if (hero.stack === 0 && bankroll === 0) {
+      if ((hero.stack === 0 && bankroll === 0) || (rules.endOnBust && state.players.some(player => player.stack === 0))) {
         finishTable();
       }
       if (state.heroHand) {
@@ -794,6 +797,7 @@ const pokerGame = (() => {
         if (state.foldPending) act(0, { type: 'fold' });
         return;
       }
+      if (state.actor > 0 && rules.humanOnly) return;
       const actor = state.actor;
       const hand = state;
       const token = state.epoch;

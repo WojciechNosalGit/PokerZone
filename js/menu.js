@@ -265,7 +265,7 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
   });
 
   setup.addEventListener('close', () => {
-    if (!setup.open && !sessionDialog.open && setup.returnValue !== 'tutorial') game.resume();
+    if (!setup.open && !sessionDialog.open && !['tutorial', 'online'].includes(setup.returnValue)) game.resume();
   });
   setup.addEventListener('cancel', event => {
     const state = game.getState();

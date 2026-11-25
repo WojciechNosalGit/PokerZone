@@ -4,3 +4,4 @@
 __pycache__/
 *.py[cod]
 /.venv/
+/server/node_modules/

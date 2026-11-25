@@ -114,7 +114,7 @@ const pokerView = (() => {
     </li>`;
   }
 
-  function tableSeatHTML(player, state, tutorial) {
+  function tableSeatHTML(player, state, interactiveProfile) {
     const hero = player.id === 0;
     const participating = player.hand.length === 2;
     if (!hero && !participating) return '';
@@ -124,7 +124,7 @@ const pokerView = (() => {
     const turn = state.phase === 'betting' && !state.dealing && state.actor === player.id;
     const preset = pokerAvatars.isPreset(player.avatar) ? ` data-avatar-preset="${player.avatar}"` : '';
     const portrait = `<span class="seat-avatar"${preset} aria-hidden="true"></span>`;
-    const avatarControl = hero && !tutorial
+    const avatarControl = hero && interactiveProfile
       ? `<div class="hero-tools">
          <button type="button" id="table-profile" class="hero-profile" aria-label="Twój profil" aria-haspopup="dialog" aria-controls="player-profile" data-tooltip="Profil">
            ${portrait}<span class="zone-tooltip hero-profile-label" aria-hidden="true">Profil</span>
@@ -197,10 +197,11 @@ const pokerView = (() => {
     for (const outline of button.querySelectorAll('.next-hand-outline path')) outline.setAttribute('d', path);
   }
 
-  function controlsHTML(state, pot, min, outgoing, returning, tutorial) {
+  function controlsHTML(state, pot, min, outgoing, returning, tutorial, online) {
     const { smallBlind, bigBlind } = state;
     const player = state.players[0];
-    const active = state.phase === 'betting' && player.hand.length === 2 && !player.folded && !player.allIn;
+    const connected = !online || online.connected;
+    const active = connected && state.phase === 'betting' && player.hand.length === 2 && !player.folded && !player.allIn;
     const canAct = active && !state.dealing && state.actor === 0;
     const toCall = active ? Math.max(0, state.currentBet - player.bet) : 0;
     const guided = tutorial && !tutorial.practice;
@@ -234,10 +235,13 @@ const pokerView = (() => {
     const wagerName = avatarActionNames.get(wagerKind(state));
     const raiseLabel = outgoing?.raise ?? (canRaise ? wagerName + ' ' + money(target) : wagerName);
     const refillPractice = tutorial?.practice && state.phase === 'gameover';
+    const rematch = online?.host && state.phase === 'gameover';
     const next = guided || refillPractice
       ? `<button class="next-hand action-replacement" id="nextHand" type="button">${escapeHTML(tutorial.nextLabel)} <span aria-hidden="true">→</span></button>`
       : nextHandButton;
-    const replacement = state.phase === 'finished' || refillPractice ? next : '';
+    const replacement = rematch
+      ? `<button class="next-hand action-replacement" id="nextHand" type="button" ${connected ? '' : 'disabled'}>Nowa partia</button>`
+      : connected && (state.phase === 'finished' || refillPractice) ? next : '';
 
     function stepperHTML(suffix, label, stepLabel, range) {
       const showBlinds = suffix && !preflop;
@@ -264,7 +268,8 @@ const pokerView = (() => {
   </div>`;
   }
 
-  function statusHTML(state, player) {
+  function statusHTML(state, player, online) {
+    if (online && !online.connected) return 'Czekamy na połączenie obu graczy.';
     if (state.phase === 'finished' || state.phase === 'gameover') {
       return `<span class="result-title">${escapeHTML(state.summary)}</span>`;
     }
@@ -272,7 +277,7 @@ const pokerView = (() => {
     if (state.phase !== 'betting') return 'Przygotowanie rozdania';
     if (state.runoutFrom) return '<button class="skip-runout" id="skip-runout" type="button">Pomiń animację</button>';
     if (state.actor === -1) return state.street === 'river' ? 'Showdown…' : 'Odkrywanie kart wspólnych…';
-    if (state.actor !== 0) return `Ruch: <strong>${escapeHTML(displayName(state.players[state.actor]))}</strong> analizuje rozdanie…`;
+    if (state.actor !== 0) return `Ruch: <strong>${escapeHTML(displayName(state.players[state.actor]))}</strong> ${online ? 'podejmuje decyzję…' : 'analizuje rozdanie…'}`;
     const toCall = Math.min(Math.max(0, state.currentBet - player.bet), player.stack);
     return `<strong>Twoja kolej.</strong> Wybierz ruch. Do sprawdzenia: <strong>${money(toCall)}</strong>`;
   }
@@ -300,7 +305,7 @@ const pokerView = (() => {
       // Widoczność można zmienić także wtedy, gdy przeglądarka blokuje zapis preferencji.
     }
 
-    function bindControls(turn, runningOut, tutorial) {
+    function bindControls(turn, runningOut, tutorial, online) {
       find('#table-profile')?.addEventListener('click', openProfile);
       if (runningOut) {
         find('.felt').addEventListener('click', event => {
@@ -309,7 +314,7 @@ const pokerView = (() => {
         });
       }
       const analysis = find('#showAnalysis');
-      analysis.addEventListener('change', () => {
+      analysis?.addEventListener('change', () => {
         showAnalysis = analysis.checked;
         find('.log-panel').dataset.showAnalysis = String(showAnalysis);
         try {
@@ -326,7 +331,7 @@ const pokerView = (() => {
         }
         nextButton.addEventListener('click', () => {
           const { phase } = game.getState();
-          if (phase === 'finished' || (phase === 'gameover' && tutorial?.practice)) nextHand();
+          if (phase === 'finished' || (phase === 'gameover' && (tutorial?.practice || online?.host))) nextHand();
         });
       }
       find('#tutorial-replay')?.addEventListener('click', replay);
@@ -407,7 +412,7 @@ const pokerView = (() => {
       selectRaise(target);
     }
 
-    return function render(state, { restored = false, tutorial } = {}) {
+    return function render(state, { restored = false, tutorial, online } = {}) {
       if (!state || state.phase === 'left') {
         outlineResize?.disconnect();
         previousSessionId = undefined;
@@ -468,8 +473,8 @@ const pokerView = (() => {
      </div>
      <div class="board-row"><div class="board">${Array.from({ length: 5 }, (_, i) => cardHTML(state.board[i] || null)).join('')}</div><div class="deal-deck card back" aria-hidden="true"></div></div>
    </div>
-   ${state.players.map(seat => tableSeatHTML(seat, state, tutorial)).join('')}
-   <div class="table-corner table-status" role="status">${statusHTML(state, player)}</div>
+   ${state.players.map(seat => tableSeatHTML(seat, state, !tutorial && !online)).join('')}
+   <div class="table-corner table-status" role="status">${statusHTML(state, player, online)}</div>
    ${showHand ? handStatusHTML(player.hand, state.board) : ''}
  </div>
  ${tutorial ? `<section class="tutorial-coach" aria-label="Samouczek">
@@ -478,20 +483,20 @@ const pokerView = (() => {
      ${finished && !tutorial.practice ? '<button id="tutorial-replay" class="zone-art-button" type="button">Powtórz rozdanie</button>' : ''}
    </section>` : ''}
  <div class="table-footer">
-   <div class="controls zone-surface">${controlsHTML(state, pot, game.minRaiseTo(), outgoing, Boolean(departingNextHand), tutorial)}</div>
+   <div class="controls zone-surface">${controlsHTML(state, pot, game.minRaiseTo(), outgoing, Boolean(departingNextHand), tutorial, online)}</div>
  </div>
- </div><aside class="session-panels"><section class="panel"><h2>Twój styl gry (ta sesja)</h2>
+ </div><aside class="session-panels">${online ? '' : `<section class="panel"><h2>Twój styl gry (ta sesja)</h2>
  <div class="statline"><span>Rozdania</span><strong>${stats.hands}</strong></div>
  <div class="statline"><span tabindex="0" data-tooltip="Wynik netto w big blindach na 100 zakończonych rozdań">Wynik sesji</span><strong>${winRate === null ? '—' : formatWinRate(winRate)} BB/100</strong></div>
  <div class="statline"><span>VPIP</span><strong>${percent(stats.vpip)}</strong></div>
  <div class="statline"><span>PFR</span><strong>${percent(stats.pfr)}</strong></div>
  <div class="statline"><span>Raise / Call</span><strong>${stats.raises} / ${stats.calls}</strong></div>
  <p class="hint">VPIP: jak często dobrowolnie wchodzisz do puli przed flopem. PFR: jak często podbijasz przed flopem. Boty zaczną lekko dostosowywać decyzje po 4 rozdaniach. Pamięć działa do końca tej sesji.</p>
- </section><section class="panel log-panel" data-show-analysis="${showAnalysis}">
+ </section>`}<section class="panel log-panel" data-show-analysis="${!online && showAnalysis}">
  <h2 id="table-actions-title">Akcje przy stole</h2>
- <label class="log-options"><input type="checkbox" id="showAnalysis" ${showAnalysis ? 'checked' : ''}> Pokaż equity i pot odds</label>
+ ${online ? '' : `<label class="log-options"><input type="checkbox" id="showAnalysis" ${showAnalysis ? 'checked' : ''}> Pokaż equity i pot odds</label>`}
  <ol class="log" aria-labelledby="table-actions-title">${state.logs.map(logEntryHTML).join('')}</ol>
- <p class="hint log-analysis">Equity to szacowany udział w puli. Pot odds to koszt sprawdzenia w stosunku do puli po sprawdzeniu.</p>
+ ${online ? '' : '<p class="hint log-analysis">Equity to szacowany udział w puli. Pot odds to koszt sprawdzenia w stosunku do puli po sprawdzeniu.</p>'}
  </section></aside></div>`;
       pokerAvatars.setAvatar(find('.hero-seat .seat-avatar'), player.avatar);
       if (tutorial?.best) {
@@ -504,7 +509,7 @@ const pokerView = (() => {
         departingNextHand.addEventListener('animationcancel', () => departingNextHand.remove(), { once: true });
         find('.action-grid').append(departingNextHand);
       }
-      bindControls(turn, runningOut, tutorial);
+      bindControls(turn, runningOut, tutorial, online);
       find('.log').scrollTop = logScroll;
       if (focusedControl) find(focusedControl)?.focus({ preventScroll: true });
     };

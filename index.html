@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="pokerzone-online-url" content="">
   <title>PokerZone</title>
   <link rel="icon" type="image/png" sizes="64x64" href="assets/images/favicon.png">
   <link rel="stylesheet" href="css/styles.css">
@@ -24,6 +25,7 @@
   <script defer src="js/tooltips.js"></script>
   <script defer src="js/chat.js"></script>
   <script defer src="js/tutorial.js"></script>
+  <script defer src="js/online.js"></script>
   <script defer src="js/main.js"></script>
 </head>
 <body>
@@ -38,9 +40,11 @@
           <button class="reset game-menu-button leave-table-button" type="button" id="leaveTable" aria-haspopup="dialog" aria-controls="game-setup" data-tooltip="Żetony spoza puli wrócą do bankrolla. Możesz wybrać inny stół.">Opuść stół</button>
         </div>
         <button class="reset game-menu-button leave-table-button" type="button" id="end-tutorial" aria-haspopup="dialog" aria-controls="game-setup" hidden>Zakończ samouczek</button>
+        <button class="reset game-menu-button leave-table-button" type="button" id="end-online" aria-haspopup="dialog" aria-controls="game-setup" hidden>Opuść stół online</button>
         <button class="reset game-menu-button" type="button" id="game-menu" aria-haspopup="dialog" aria-controls="game-setup">Menu</button>
       </div>
     </header>
+    <p class="online-table-status" id="online-table-status" role="status" hidden></p>
     <div id="app" aria-live="polite"></div>
     <section class="panel hand-history" id="hand-history" aria-labelledby="hand-history-title" hidden></section>
   </main>
@@ -109,12 +113,37 @@
       </div>
     </form>
     <div class="setup-actions">
+      <button type="button" class="zone-art-button" id="open-online" aria-haspopup="dialog" aria-controls="online-dialog">Graj online</button>
       <button type="button" class="zone-art-button" id="save-session" aria-haspopup="dialog" hidden disabled>Zapisz sesję</button>
       <button type="button" class="zone-art-button" id="setup-resume" aria-haspopup="dialog" disabled>Wznów sesję</button>
       <button type="button" class="zone-art-button" id="change-table" hidden disabled>Zmień stół</button>
       <a class="zone-art-button" id="open-history" href="#hand-history">Historia</a>
     </div>
     <p class="menu-status" data-menu-status role="status" hidden></p>
+  </dialog>
+  <dialog class="setup-dialog zone-dialog zone-surface" id="online-dialog" aria-labelledby="online-title">
+    <header class="zone-dialog-heading">
+      <h2 id="online-title">Graj online</h2>
+      <button class="reset zone-close" id="close-online-dialog" type="button" aria-label="Zamknij okno online">×</button>
+    </header>
+    <form id="online-form">
+      <div class="zone-field"><label for="online-name">Nick przy stole</label><input id="online-name" maxlength="24" required autocomplete="nickname"></div>
+      <div class="zone-field"><label for="online-room">Kod zaproszenia</label><input id="online-room" maxlength="10" spellcheck="false" autocomplete="off" autocapitalize="characters"></div>
+      <div class="zone-field"><label for="online-stakes">Stawka nowego stołu</label><select id="online-stakes"></select></div>
+      <details id="online-server-details">
+        <summary>Adres serwera</summary>
+        <div class="zone-field"><label class="zone-visually-hidden" for="online-server">Adres serwera gry</label><input id="online-server" type="url" placeholder="wss://serwer.example/ws" spellcheck="false"></div>
+      </details>
+      <div class="setup-controls">
+        <button class="zone-art-button" type="submit" value="create">Utwórz stół</button>
+        <button class="zone-art-button" type="submit" value="join">Dołącz</button>
+      </div>
+    </form>
+    <div id="online-invitation" hidden>
+      <div class="zone-field"><label for="online-link">Link do stołu</label><input id="online-link" readonly></div>
+      <button class="zone-art-button" id="copy-online-link" type="button">Kopiuj zaproszenie</button>
+    </div>
+    <p class="menu-status" id="online-dialog-status" role="status" hidden></p>
   </dialog>
   <dialog class="setup-dialog zone-dialog zone-surface" id="session-dialog" aria-labelledby="session-title">
     <header class="zone-dialog-heading">
