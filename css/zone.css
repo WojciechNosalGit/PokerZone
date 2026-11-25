@@ -319,8 +319,7 @@ dialog.zone-surface::after {
 }
 
 :is(.dialog-motifs, .page-motifs)::before,
-:is(.dialog-motifs, .page-motifs)::after,
-.setup-center-motif {
+:is(.dialog-motifs, .page-motifs)::after {
   position: absolute;
   color: transparent;
   font-family: "Segoe UI Symbol", system-ui, sans-serif;
@@ -377,7 +376,7 @@ dialog.zone-surface::after {
     --motif-x: 16px;
     --motif-y: 19px;
     --motif-duration: 21s;
-    content: "♦";
+    content: var(--dialog-secondary-suit, "♦");
     inset-inline-start: -0.26em;
     inset-block-start: 18%;
     font-size: clamp(145px, 49cqi, 280px);
@@ -388,8 +387,7 @@ dialog.zone-surface::after {
 
 @media (prefers-reduced-motion: no-preference) {
   :is(.dialog-motifs, .page-motifs)::before,
-  :is(.dialog-motifs, .page-motifs)::after,
-  .setup-center-motif {
+  :is(.dialog-motifs, .page-motifs)::after {
     animation: suit-motif-drift var(--motif-duration) ease-in-out infinite alternate;
   }
 }
@@ -459,18 +457,8 @@ dialog.zone-surface::after {
 }
 
 #game-setup > .dialog-motifs {
+  --dialog-secondary-suit: "♣";
   background: none;
-}
-
-.setup-center-motif {
-  --motif-x: 11px;
-  --motif-y: -9px;
-  --motif-duration: 25s;
-  inset-block-start: 50%;
-  inset-inline-start: 50%;
-  transform: translate(-50%, -50%) rotate(-13deg);
-  font-size: clamp(144px, 60cqi, 275px);
-  -webkit-text-stroke: 1px #6ed3e95e;
 }
 
 .avatar-portrait-frame {
