@@ -1,6 +1,9 @@
 :root {
   --zone-cyan: #51e4ef;
   --zone-gold: #ffd36b;
+  --zone-selected-edge: #e8b763;
+  --zone-selected-fill: #312b22;
+  --zone-selected-text: #ffda88;
   --zone-line: #245369;
   --zone-ink: #061620;
 }
@@ -451,9 +454,9 @@ body {
 }
 
 .stake-choice[aria-pressed="true"] {
-  border-color: #e8b763;
-  background: #312b22;
-  color: #ffda88;
+  border-color: var(--zone-selected-edge);
+  background: var(--zone-selected-fill);
+  color: var(--zone-selected-text);
 }
 
 .help-choice {
@@ -954,6 +957,14 @@ body {
     linear-gradient(315deg, transparent 12px, var(--button-corner) 12px 14px, transparent 14px) bottom right / 28px 28px no-repeat,
     radial-gradient(ellipse at 50% 0%, var(--button-glow), transparent 72%),
     var(--button-fill);
+}
+
+.zone-gold-button {
+  --button-edge: var(--zone-selected-edge);
+  --button-corner: #e8b7636e;
+  --button-glow: #ab652e44;
+  --button-fill: var(--zone-selected-fill);
+  color: var(--zone-selected-text);
 }
 
 .zone-cancel-button {
