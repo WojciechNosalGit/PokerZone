@@ -154,8 +154,6 @@ function createPokerSessions(dialog, game, confirmAction) {
       showStatus('Wybierz zapisaną sesję.');
       return;
     }
-    if (game.getState() && !await confirmAction('Wznowić zapisaną sesję?',
-      'Bieżąca gra zostanie zastąpiona wybranym zapisem.', 'Wznów sesję')) return;
     try {
       game.restoreSession(entry.session);
       restoredCheckpoint = { source: entry.session, current: game.saveSession() };
