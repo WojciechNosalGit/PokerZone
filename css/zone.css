@@ -1468,25 +1468,53 @@ dialog.zone-surface::after {
 }
 
 .profile-dialog .profile-form {
-  position: relative;
-  isolation: isolate;
   min-block-size: 0;
   padding: 14px 16px 16px;
   overflow: auto;
 }
 
-.profile-form .avatar-portrait-frame {
-  z-index: -1;
+.profile-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "intro";
+}
+
+.profile-intro > * {
+  grid-area: intro;
+}
+
+.profile-name-field {
+  align-self: start;
+  inline-size: calc(100% / 3);
+  z-index: 1;
+}
+
+.profile-name-field label {
+  inline-size: max-content;
 }
 
 .profile-form input[type="text"] {
-  inline-size: calc(100% / 3);
   padding-inline: 7px;
   font-size: clamp(13px, 3.5vw, 15px);
 }
 
+#profile-avatar-preview {
+  position: relative;
+  inset: auto;
+  place-self: start end;
+  inline-size: min(65%, var(--avatar-native-size, 346px));
+  block-size: auto;
+  aspect-ratio: 1;
+  margin: -16px -16px -18px 0;
+}
+
+#profile-avatar-preview.custom-avatar {
+  --avatar-native-size: 160px;
+}
+
 .profile-avatar-heading {
-  margin: 16px 0 0;
+  place-self: end start;
+  margin: 0;
   color: #e7f5fa;
   font-size: 1rem;
 }

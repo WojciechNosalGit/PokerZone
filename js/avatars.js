@@ -39,13 +39,8 @@ const pokerAvatars = (() => {
   }));
   const botPresets = groups.flatMap(group => group.presets);
   const botPresetIds = new Set(botPresets.map(({ id }) => id));
-  const silhouettes = [
-    ['neutral', 'Neutralny'], ['teal', 'Turkusowy'], ['blue', 'Niebieski'],
-    ['green', 'Zielony'], ['gold', 'Złoty'], ['pink', 'Różowy'], ['purple', 'Fioletowy']
-  ].map(([color, label]) => ({ id: `default-${color}`, label }));
-  const defaultAvatar = silhouettes[0].id;
-  groups.unshift({ id: 'default', label: 'Domyślne', presets: silhouettes });
-  const presetIds = new Set([...botPresetIds, ...silhouettes.map(({ id }) => id)]);
+  const legacySilhouettes = ['neutral', 'teal', 'blue', 'green', 'gold', 'pink', 'purple'];
+  const presetIds = new Set([...botPresetIds, ...legacySilhouettes.map(color => `default-${color}`)]);
   const isPreset = value => presetIds.has(value);
   const isUpload = value => typeof value === 'string' && /^data:image\/(?:png|webp);base64,[a-z0-9+/]+={0,2}$/i.test(value);
 
@@ -75,5 +70,5 @@ const pokerAvatars = (() => {
     }
   }
 
-  return { groups, defaultAvatar, isPreset, isUpload, setPreset, setAvatar, fillBotAvatars };
+  return { groups, isPreset, isUpload, setPreset, setAvatar, fillBotAvatars };
 })();

@@ -9,7 +9,7 @@ function pokerProfileNickname({ name, nameSelected }) {
 function createPokerProfile(dialog, onSave) {
   const storageKey = 'poker-lab-player-profile';
   const profileWithNickname = (nickname, avatar) => ({ name: nickname || 'Ty', nameSelected: Boolean(nickname), avatar });
-  const { groups, defaultAvatar, isPreset, isUpload, setPreset, setAvatar } = pokerAvatars;
+  const { groups, isPreset, isUpload, setPreset, setAvatar } = pokerAvatars;
   const genderLabels = { male: 'męski', female: 'żeński', neutral: 'neutralny' };
   const form = dialog.querySelector('#profile-form');
   const name = dialog.querySelector('#profile-name');
@@ -28,7 +28,6 @@ function createPokerProfile(dialog, onSave) {
   }
 
   let draftAvatar = '';
-  const activeAvatar = () => draftAvatar || defaultAvatar;
 
   const rows = groups.map(({ id, label, presets }) => {
     const category = document.createElement('fieldset');
@@ -41,11 +40,11 @@ function createPokerProfile(dialog, onSave) {
     options.className = 'profile-avatar-options';
     options.id = `profile-avatars-${id}`;
 
-    const choices = presets.map(({ id: avatar, label: color, gender }, index) => {
+    const choices = presets.map(({ id: avatar, gender }, index) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'profile-avatar-option';
-      const description = color ? `${label}, ${color.toLowerCase()}` : `${label}, avatar ${index + 1} (${genderLabels[gender]})`;
+      const description = `${label}, avatar ${index + 1} (${genderLabels[gender]})`;
       button.dataset.tooltip = description;
       button.setAttribute('aria-label', description);
       setPreset(button, avatar);
@@ -95,9 +94,8 @@ function createPokerProfile(dialog, onSave) {
   }
 
   function updatePreview() {
-    const selected = activeAvatar();
-    setAvatar(preview, selected);
-    for (const button of choices) button.setAttribute('aria-pressed', String(button.dataset.avatarPreset === selected));
+    setAvatar(preview, draftAvatar);
+    for (const button of choices) button.setAttribute('aria-pressed', String(button.dataset.avatarPreset === draftAvatar));
   }
 
   function selectAvatar(avatar) {
@@ -115,7 +113,7 @@ function createPokerProfile(dialog, onSave) {
     dialog.showModal();
     form.scrollTop = 0;
     for (const { options, choices, updateArrows } of rows) {
-      const selected = choices.find(button => button.dataset.avatarPreset === activeAvatar());
+      const selected = choices.find(button => button.dataset.avatarPreset === draftAvatar);
       if (selected) options.scrollTo({ left: selected.offsetLeft - choices[0].offsetLeft, behavior: 'instant' });
       updateArrows();
     }

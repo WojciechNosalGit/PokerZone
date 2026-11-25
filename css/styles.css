@@ -1459,11 +1459,8 @@ button:disabled {
   overflow: hidden;
   border: 2px solid #6095a0;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 2px #07151ed9, 0 0 0 1px #83c0cb45, 0 3px 7px #0009;
-}
-
-:is(.seat-avatar, .profile-avatar-option[data-avatar-preset^="default-"]) {
   background: radial-gradient(circle at 40% 23%, var(--avatar-bg-light, #2c4a50), var(--avatar-bg-dark, #0e2229) 83%);
+  box-shadow: inset 0 0 0 2px #07151ed9, 0 0 0 1px #83c0cb45, 0 3px 7px #0009;
 }
 
 .hero-profile {
@@ -1529,13 +1526,8 @@ button:disabled {
   }
 }
 
-.profile-avatar-option[data-avatar-preset^="default-"] {
-  position: relative;
-  flex-basis: clamp(55px, calc((100% - 60px) / 7), 78px);
-}
-
-:is(.seat-avatar, .profile-avatar-option[data-avatar-preset^="default-"])::before,
-:is(.seat-avatar, .profile-avatar-option[data-avatar-preset^="default-"])::after {
+.seat-avatar::before,
+.seat-avatar::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -1543,14 +1535,14 @@ button:disabled {
   background: linear-gradient(155deg, var(--avatar-ink-light, #edf3f3), var(--avatar-accent, #b9c5c8));
 }
 
-:is(.seat-avatar, .profile-avatar-option[data-avatar-preset^="default-"])::before {
+.seat-avatar::before {
   top: 19%;
   width: 32%;
   aspect-ratio: 1;
   border-radius: 50%;
 }
 
-:is(.seat-avatar, .profile-avatar-option[data-avatar-preset^="default-"])::after {
+.seat-avatar::after {
   top: 55%;
   width: 70%;
   height: 38%;
@@ -1578,6 +1570,7 @@ button:disabled {
 [data-avatar-preset^="animal-"] {
   --avatar-sheet: url("../assets/images/animal-avatars.png");
   --avatar-sheet-size: 449.69% 337.27%;
+  --avatar-native-size: 322px;
   --avatar-column-1: 4.35%;
   --avatar-column-2: 34.90%;
   --avatar-column-3: 65.19%;
@@ -1590,6 +1583,7 @@ button:disabled {
 [data-avatar-preset^="cyberpunk-"] {
   --avatar-sheet: url("../assets/images/cyberpunk-avatars.png");
   --avatar-sheet-size: 482.67% 362%;
+  --avatar-native-size: 300px;
   --avatar-column-1: 6.36%;
   --avatar-column-2: 35.45%;
   --avatar-column-3: 64.46%;
@@ -1602,6 +1596,7 @@ button:disabled {
 [data-avatar-preset^="fantasy-"] {
   --avatar-sheet: url("../assets/images/fantasy-avatars.png");
   --avatar-sheet-size: 438.79% 329.09%;
+  --avatar-native-size: 330px;
   --avatar-column-1: 2.59%;
   --avatar-column-2: 34.08%;
   --avatar-column-3: 65.56%;
@@ -1622,6 +1617,7 @@ button:disabled {
 [data-avatar-preset^="neon-"] {
   --avatar-sheet: url("../assets/images/neon-avatars.png");
   --avatar-sheet-size: 455.346% 341.509%;
+  --avatar-native-size: 318px;
 }
 
 [data-avatar-preset="neon-1"],
@@ -1672,6 +1668,7 @@ button:disabled {
 [data-avatar-preset^="rick-"] {
   --avatar-sheet: url("../assets/images/rick-avatars.png");
   --avatar-sheet-size: 436.145% 327.108%;
+  --avatar-native-size: 332px;
 }
 
 [data-avatar-preset="rick-1"] { --avatar-x: 3.853%; --avatar-y: 2.520%; }
@@ -1690,6 +1687,7 @@ button:disabled {
 [data-avatar-preset^="mafia-"] {
   --avatar-sheet: url("../assets/images/mafia-avatars.png");
   --avatar-sheet-size: 418.497% 313.873%;
+  --avatar-native-size: 346px;
 }
 
 [data-avatar-preset="mafia-1"],
