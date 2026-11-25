@@ -1432,6 +1432,7 @@ dialog.zone-surface::after {
 
 .profile-dialog {
   --profile-header-overlap: 30px;
+  --profile-form-padding: 16px;
   padding: 0;
   overflow: hidden;
   border-color: #2f738b;
@@ -1480,14 +1481,17 @@ dialog.zone-surface::after {
   container-type: inline-size;
   min-block-size: 0;
   margin-block-start: calc(-1 * var(--profile-header-overlap));
-  padding: 0 16px 16px;
+  padding: 0 var(--profile-form-padding) 16px;
   scroll-padding-block-start: var(--profile-header-overlap);
   overflow: auto;
 }
 
 .profile-intro {
+  --profile-portrait-size: min(65cqi, 346px);
+  --profile-gallery-overlap: clamp(48px, 9cqi, 54px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) calc(var(--profile-portrait-size) - var(--profile-form-padding));
+  min-block-size: calc(var(--profile-portrait-size) - var(--profile-gallery-overlap));
   align-items: center;
 }
 
@@ -1513,11 +1517,11 @@ dialog.zone-surface::after {
   z-index: -1;
   inset: auto;
   place-self: start end;
-  inline-size: min(65cqi, var(--avatar-native-size, 346px));
+  inline-size: min(var(--profile-portrait-size), var(--avatar-native-size, 346px));
   block-size: auto;
   aspect-ratio: 1;
-  margin-inline-end: -16px;
-  margin-block-end: clamp(-54px, -9cqi, -48px);
+  margin-inline-end: calc(-1 * var(--profile-form-padding));
+  margin-block-end: calc(-1 * var(--profile-gallery-overlap));
 }
 
 #profile-avatar-preview.custom-avatar {
