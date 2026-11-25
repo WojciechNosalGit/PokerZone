@@ -689,7 +689,7 @@ dialog.zone-surface::after {
   font-size: 13px;
 }
 
-.tutorial-coach + .table-footer .action-grid > :is(.call, .fold, .raise):enabled {
+.tutorial-coach[data-guided] + .table-footer .action-grid > :is(.call, .fold, .raise):enabled {
   --footer-edge: var(--zone-gold);
   filter: brightness(1.15);
 }

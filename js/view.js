@@ -491,7 +491,7 @@ const pokerView = (() => {
      <button class="zone-art-button" id="tutorial-overview-next" type="button">${overview.step === overview.total ? 'Zagraj rozdanie' : 'Dalej'}</button>
    </section>` : ''}
  </div>
- ${tutorial && !overview ? `<section class="tutorial-coach" aria-label="Samouczek">
+ ${tutorial && !overview ? `<section class="tutorial-coach"${tutorial.practice ? '' : ' data-guided'} aria-label="Samouczek">
      <div><h2>${escapeHTML(tutorial.title)}</h2><span>Rozdanie ${tutorial.number}${tutorial.total ? ` z ${tutorial.total}` : ''}</span></div>
      <p>${escapeHTML(tutorial.prompt)}</p>
      ${finished && !tutorial.practice ? '<button id="tutorial-replay" class="zone-art-button" type="button">Powtórz rozdanie</button>' : ''}
