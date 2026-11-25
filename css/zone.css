@@ -1436,11 +1436,7 @@ dialog.zone-surface::after {
   padding: 0;
   overflow: hidden;
   border-color: #2f738b;
-  background: transparent;
-}
-
-.profile-dialog > .dialog-motifs {
-  background: transparent;
+  background: radial-gradient(ellipse at 18% 0%, #09434a55, transparent 35%), #081c27;
 }
 
 .profile-dialog[open] {
