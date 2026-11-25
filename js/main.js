@@ -23,6 +23,7 @@
     leaveTableAction.hidden = !state || state.phase === 'left' || state.phase === 'gameover';
     historyPanel.hidden = !state;
     const delay = effects.onChange(state, options);
+    chat.onChange(state, options);
     if (!state || state.phase === 'left') {
       if (lossDialog.open) lossDialog.close();
       openSetup(state ? 'change' : 'new');
@@ -44,6 +45,7 @@
   const menuButton = document.querySelector('#game-menu');
   const setup = document.querySelector('#game-setup');
   const profileDialog = document.querySelector('#player-profile');
+  const chat = createPokerChat(root, document.querySelector('#table-chat-dialog'), game);
 
   function updateBankroll() {
     const amount = formatAmount(game.getBankroll());

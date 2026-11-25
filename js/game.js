@@ -2,6 +2,7 @@
 
 const pokerGame = (() => {
   const STARTING_BIG_BLINDS = 100;
+  const MINIMUM_BUY_IN_BIG_BLINDS = 50;
   const startingBankroll = 800;
   const LEGACY_STARTING_STACK = 1000;
   const stakes = [
@@ -48,11 +49,17 @@ const pokerGame = (() => {
   const { fullDeck, shuffled, randomIndex, score7, compareScore, handNames } = pokerCards;
   const formatAmount = amount => Number(amount).toLocaleString('pl-PL');
   const buyInFor = bigBlind => STARTING_BIG_BLINDS * bigBlind;
-  const buyInWithFunds = (bigBlind, funds) => {
-    const fullBuyIn = buyInFor(bigBlind);
-    if (funds >= fullBuyIn) return fullBuyIn;
-    return bigBlind === stakes[0].bigBlind ? funds : 0;
-  };
+  const minBuyInFor = bigBlind => MINIMUM_BUY_IN_BIG_BLINDS * bigBlind;
+
+  function affordableBuyIn(bigBlind, funds, desired) {
+    if (funds < minBuyInFor(bigBlind)) return bigBlind === stakes[0].bigBlind ? funds : 0;
+    return Math.min(desired, Math.floor(funds / bigBlind) * bigBlind);
+  }
+
+  function buyInRange(bigBlind, funds) {
+    if (funds <= 0 || (bigBlind !== stakes[0].bigBlind && funds < buyInFor(bigBlind))) return null;
+    return { min: Math.min(minBuyInFor(bigBlind), funds), max: affordableBuyIn(bigBlind, funds, buyInFor(bigBlind)) };
+  }
   const isBankroll = amount => Number.isSafeInteger(amount) && amount >= 0;
   const isTableClosed = phase => phase === 'gameover' || phase === 'left';
   const createId = () => crypto.randomUUID?.() ?? crypto.getRandomValues(new Uint32Array(4)).join('-');
@@ -121,6 +128,7 @@ const pokerGame = (() => {
       sessionId: createId(),
       ...blinds,
       startingStack,
+      rebuyTarget: Math.max(minBuyInFor(blinds.bigBlind), heroBuyIn),
       heroBuyIns: heroBuyIn,
       tableBuyIns: heroBuyIn + (playerCount - 1) * startingStack,
       handId: null,
@@ -144,6 +152,7 @@ const pokerGame = (() => {
       heroHand: null,
       handVpip: false,
       handPfr: false,
+      autoFold: false,
       dealing: false,
       runoutFrom: null,
       timer: null,
@@ -187,6 +196,7 @@ const pokerGame = (() => {
       clearTableTimers();
       finishTable(availableBankroll() === 0 ? 'gameover' : 'left');
       state.actor = -1;
+      state.autoFold = false;
       state.dealing = false;
       state.runoutFrom = null;
       onChange(state);
@@ -247,8 +257,8 @@ const pokerGame = (() => {
       if (state.logs.length > 70) state.logs.length = 70;
     }
 
-    function newGame({ playerCount = defaultPlayers, bigBlind = stakes[0].bigBlind } = {}) {
-      startTable(playerCount, bigBlind, startingBankroll);
+    function newGame({ playerCount = defaultPlayers, bigBlind = stakes[0].bigBlind, buyIn } = {}) {
+      startTable(playerCount, bigBlind, startingBankroll, buyIn);
     }
 
     function resetGame() {
@@ -258,17 +268,21 @@ const pokerGame = (() => {
       onChange(state);
     }
 
-    function changeTable({ playerCount = state?.players.length ?? defaultPlayers, bigBlind = state?.bigBlind ?? stakes[0].bigBlind } = {}) {
+    function changeTable({ playerCount = state?.players.length ?? defaultPlayers, bigBlind = state?.bigBlind ?? stakes[0].bigBlind, buyIn } = {}) {
       if (!state) throw new Error('Najpierw rozpocznij lub wznów grę.');
-      startTable(playerCount, bigBlind, availableBankroll(), state.players);
+      startTable(playerCount, bigBlind, availableBankroll(), buyIn, state.players);
     }
 
-    function startTable(playerCount, bigBlind, availableFunds, previousPlayers) {
+    function startTable(playerCount, bigBlind, availableFunds, selectedBuyIn, previousPlayers) {
       const blinds = stakes.find(stake => stake.bigBlind === bigBlind);
       if (!Number.isInteger(playerCount) || playerCount < minPlayers || playerCount > maxPlayers
         || !blinds) throw new RangeError('Nieprawidłowe ustawienia stołu.');
-      const buyIn = buyInWithFunds(bigBlind, availableFunds);
-      if (!buyIn) throw new RangeError(`Musisz uzbierać ${formatAmount(buyInFor(bigBlind))} na to wpisowe.`);
+      const range = buyInRange(bigBlind, availableFunds);
+      if (!range) throw new RangeError(`Musisz uzbierać ${formatAmount(buyInFor(bigBlind))} na to wpisowe.`);
+      const buyIn = selectedBuyIn ?? range.max;
+      if (!Number.isSafeInteger(buyIn) || buyIn < range.min || buyIn > range.max || (buyIn - range.min) % bigBlind) {
+        throw new RangeError('Nieprawidłowa kwota wpisowego.');
+      }
       const nextTable = createState(playerCount, blinds, buyIn, previousPlayers);
       clearTableTimers();
       bankroll = availableFunds - buyIn;
@@ -295,7 +309,7 @@ const pokerGame = (() => {
     }
 
     function saveSession() {
-      const { timer, epoch, dealing, runoutFrom, ...snapshot } = state;
+      const { timer, epoch, dealing, runoutFrom, autoFold, ...snapshot } = state;
       return JSON.stringify({ version: 3, bankroll, snapshot });
     }
 
@@ -318,9 +332,12 @@ const pokerGame = (() => {
       }
       const startingStack = snapshot.startingStack ?? LEGACY_STARTING_STACK;
       const heroBuyIns = snapshot.heroBuyIns ?? startingStack;
+      const rebuyTarget = snapshot.rebuyTarget ?? buyInFor(blinds.bigBlind);
       const tableBuyIns = snapshot.tableBuyIns ?? snapshot.players.length * startingStack;
       const totalPot = snapshot.players.reduce((sum, player) => sum + player.contributed, 0);
       if ((startingStack !== LEGACY_STARTING_STACK && startingStack !== buyInFor(blinds.bigBlind))
+        || !Number.isInteger(rebuyTarget) || rebuyTarget < minBuyInFor(blinds.bigBlind) || rebuyTarget > buyInFor(blinds.bigBlind)
+        || rebuyTarget % blinds.bigBlind
         || !isBankroll(heroBuyIns) || !isBankroll(tableBuyIns) || heroBuyIns > tableBuyIns || totalPot > tableBuyIns) {
         throw new Error('Nieobsługiwany zapis sesji.');
       }
@@ -362,7 +379,7 @@ const pokerGame = (() => {
       clearTableTimers();
       const { level, ...saved } = snapshot;
       bankroll = restoredBankroll;
-      state = { ...saved, ...blinds, startingStack, heroBuyIns, tableBuyIns, phase,
+      state = { ...saved, ...blinds, startingStack, heroBuyIns, rebuyTarget, tableBuyIns, phase, autoFold: false,
         dealing: false, runoutFrom: null, timer: null, epoch: (state?.epoch ?? 0) + 1 };
       const hero = human();
       // Starszy zapis trzymał wybrany awatar gracza osobno, w ustawieniach profilu.
@@ -404,7 +421,7 @@ const pokerGame = (() => {
       clearTableTimers();
       state.epoch++;
       const hero = human();
-      const rebuy = hero.stack === 0 ? buyInWithFunds(state.bigBlind, bankroll) : 0;
+      const rebuy = hero.stack === 0 ? affordableBuyIn(state.bigBlind, bankroll, state.rebuyTarget) : 0;
       if (hero.stack === 0) {
         if (!rebuy) {
           leaveTable();
@@ -432,6 +449,7 @@ const pokerGame = (() => {
       state.summary = '';
       state.handVpip = false;
       state.handPfr = false;
+      state.autoFold = false;
 
       for (const player of state.players) {
         player.hand = [];
@@ -510,6 +528,13 @@ const pokerGame = (() => {
       if (field) state.stats[field]++;
     }
 
+    function toggleAutoFold() {
+      if (paused || state?.phase !== 'betting' || human().hand.length !== 2 || human().folded || human().allIn) return false;
+      state.autoFold = !state.autoFold;
+      if (state.autoFold) continueTurn();
+      return state.autoFold;
+    }
+
     function act(actorIndex, choice) {
       if (paused || state?.phase !== 'betting' || state.dealing || actorIndex < 0 || state.actor !== actorIndex) return;
       const player = state.players[actorIndex];
@@ -574,6 +599,7 @@ const pokerGame = (() => {
         state.timer = null;
       }
       if (actorIndex === 0) {
+        state.autoFold = false;
         markHumanAction(type, need, player.contributed - contributedBefore, context);
       }
       player.acted = true;
@@ -710,6 +736,7 @@ const pokerGame = (() => {
       state.timer = null;
       state.runoutFrom = null;
       const hero = human();
+      state.autoFold = false;
       if (hero.stack === 0 && bankroll === 0) {
         finishTable();
       }
@@ -761,7 +788,11 @@ const pokerGame = (() => {
         }, nextHandDelay);
         return;
       }
-      if (state.phase !== 'betting' || state.actor === 0 || state.timer !== null) return;
+      if (state.phase !== 'betting' || state.timer !== null) return;
+      if (state.actor === 0) {
+        if (state.autoFold) act(0, { type: 'fold' });
+        return;
+      }
       const actor = state.actor;
       const hand = state;
       const token = state.epoch;
@@ -803,11 +834,11 @@ const pokerGame = (() => {
       return pokerBots.estimateEquity(player, state.board, contenders().length - 1, simulations);
     }
 
-    return { newGame, resetGame, changeTable, leaveTable, startHand, act, pause, resume, skipRunout, setHeroProfile, pot, minRaiseTo,
+    return { newGame, resetGame, changeTable, leaveTable, startHand, act, toggleAutoFold, pause, resume, skipRunout, setHeroProfile, pot, minRaiseTo,
       bigBlindsPer100, getState: () => state, estimateEquity, saveSession, restoreSession,
       getBankroll: () => bankroll, availableBankroll };
   }
 
   return { createGame, formatAmount, displayName, positionsForHand, wagerKind, stakes, minPlayers, maxPlayers, defaultPlayers,
-    nextHandDelay, dealTiming, runoutTiming, buyInFor, buyInWithFunds, startingBankroll };
+    nextHandDelay, dealTiming, runoutTiming, buyInFor, buyInRange, startingBankroll };
 })();

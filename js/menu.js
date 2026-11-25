@@ -28,6 +28,10 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
   const selectedStake = setup.querySelector('#setup-stakes');
   const stakeList = setup.querySelector('#setup-stake-options');
   const balanceDisplay = setup.querySelector('#setup-bankroll [data-bankroll-amount]');
+  const buyInSlider = setup.querySelector('#setup-buy-in');
+  const buyInDisplay = setup.querySelector('#setup-buy-in-amount');
+  const lowerBuyIn = setup.querySelector('#setup-buy-in-less');
+  const higherBuyIn = setup.querySelector('#setup-buy-in-more');
   const startButton = setup.querySelector('#start-game');
   const startLabel = startButton.querySelector('#setup-start-label');
   const playerCount = setup.querySelector('#setup-players');
@@ -35,7 +39,8 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
   const playerIconRow = setup.querySelector('#setup-player-icons');
   const fewerPlayers = setup.querySelector('#setup-players-less');
   const morePlayers = setup.querySelector('#setup-players-more');
-  const { minPlayers, maxPlayers, defaultPlayers, stakes, buyInFor, buyInWithFunds, formatAmount, startingBankroll } = pokerGame;
+  const { minPlayers, maxPlayers, defaultPlayers, stakes, buyInFor, buyInRange, formatAmount, startingBankroll } = pokerGame;
+  let preferredBuyInBB = buyInFor(1);
   const playerIcons = Array.from({ length: maxPlayers }, () => {
     const icon = document.createElement('span');
     icon.className = 'table-player-icon';
@@ -52,7 +57,7 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
     button.textContent = `NL ${smallBlind}/${bigBlind}`;
     button.dataset.bigBlind = String(bigBlind);
     button.addEventListener('click', () => {
-      if (buyInWithFunds(bigBlind, setupFunds())) selectedStake.value = String(bigBlind);
+      if (buyInRange(bigBlind, setupFunds())) selectedStake.value = String(bigBlind);
       refreshStakes();
     });
     stakeList.append(button);
@@ -78,6 +83,26 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
     fewerPlayers.disabled = count <= minPlayers;
     morePlayers.disabled = count >= maxPlayers;
   }
+
+  function updateBuyIn() {
+    const bigBlind = Number(selectedStake.value);
+    const buyIn = buyInSlider.valueAsNumber;
+    const chips = formatAmount(buyIn);
+    const blinds = `${formatAmount(buyIn / bigBlind)} BB`;
+    buyInDisplay.value = bigBlind ? `${chips} · ${blinds}` : '—';
+    buyInSlider.setAttribute('aria-valuetext', bigBlind ? `${chips} żetonów, ${blinds}` : 'Brak środków');
+    lowerBuyIn.disabled = buyIn <= Number(buyInSlider.min);
+    higherBuyIn.disabled = buyIn >= Number(buyInSlider.max);
+  }
+
+  function rememberBuyIn() {
+    preferredBuyInBB = buyInSlider.valueAsNumber / Number(selectedStake.value);
+    updateBuyIn();
+  }
+
+  buyInSlider.addEventListener('input', rememberBuyIn);
+  lowerBuyIn.addEventListener('click', () => { buyInSlider.stepDown(); rememberBuyIn(); });
+  higherBuyIn.addEventListener('click', () => { buyInSlider.stepUp(); rememberBuyIn(); });
 
   const cardBackKey = 'poker-lab-card-back';
   const backOptions = setup.querySelector('#setup-back-options');
@@ -162,12 +187,20 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
 
   function refreshStakes() {
     const available = setupFunds();
-    const canAfford = option => buyInWithFunds(option.bigBlind, available) > 0;
+    const canAfford = option => Boolean(buyInRange(option.bigBlind, available));
     const selection = stakeOptions.find(option => option.bigBlind === Number(selectedStake.value) && canAfford(option))
       ?? stakeOptions.find(canAfford);
     selectedStake.value = selection ? String(selection.bigBlind) : '';
     startButton.disabled = !selection;
     balanceDisplay.textContent = formatAmount(available);
+    const { min, max } = selection ? buyInRange(selection.bigBlind, available) : { min: 0, max: 0 };
+    const step = selection?.bigBlind ?? 1;
+    buyInSlider.min = String(min);
+    buyInSlider.max = String(max);
+    buyInSlider.step = String(step);
+    buyInSlider.value = String(Math.max(min, Math.min(max, preferredBuyInBB * step)));
+    buyInSlider.disabled = min === max;
+    updateBuyIn();
     for (const option of stakeOptions) {
       const locked = !canAfford(option);
       option.button.setAttribute('aria-disabled', String(locked));
@@ -188,6 +221,7 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
     closeSetupButton.hidden = !canReturn;
     setup.setAttribute('closedby', canReturn ? 'closerequest' : 'none');
     selectedStake.value = String(change && state.phase === 'left' ? state.bigBlind : stakes[0].bigBlind);
+    preferredBuyInBB = change ? state.rebuyTarget / state.bigBlind : buyInFor(1);
     playerCount.value = String(change ? state.players.length : defaultPlayers);
     if (!state) historyPanel.hidden = true;
     setupStatus.hidden = true;
@@ -241,13 +275,14 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
   form.addEventListener('submit', async event => {
     event.preventDefault();
     const stake = stakeOptions.find(option => option.bigBlind === Number(selectedStake.value));
-    if (!stake || !buyInWithFunds(stake.bigBlind, setupFunds())) {
+    if (!stake || !buyInRange(stake.bigBlind, setupFunds())) {
       refreshStakes();
       return;
     }
     const state = game.getState();
     const change = changingTable;
     const players = playerCount.valueAsNumber;
+    const buyIn = buyInSlider.valueAsNumber;
 
     if (change && (state.phase === 'betting' || state.phase === 'finished')) {
       const accepted = await confirmAction('Zmienić stół?', 'Żetony poza pulą wrócą na saldo, z którego zostanie pobrane nowe wpisowe.', 'Zmień stół');
@@ -257,12 +292,13 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
       if (!accepted) return;
     }
 
-    if (!setup.open || changingTable !== change || game.getState() !== state || !buyInWithFunds(stake.bigBlind, setupFunds())) {
+    const range = buyInRange(stake.bigBlind, setupFunds());
+    if (!setup.open || changingTable !== change || game.getState() !== state || !range || buyIn < range.min || buyIn > range.max) {
       refreshStakes();
       return;
     }
     const start = change ? game.changeTable : game.newGame;
-    start({ bigBlind: stake.bigBlind, playerCount: players });
+    start({ bigBlind: stake.bigBlind, playerCount: players, buyIn });
     setup.close();
     refreshSessionActions();
   });

@@ -125,9 +125,12 @@ const pokerView = (() => {
     const preset = pokerAvatars.isPreset(player.avatar) ? ` data-avatar-preset="${player.avatar}"` : '';
     const portrait = `<span class="seat-avatar"${preset} aria-hidden="true"></span>`;
     const avatarControl = hero
-      ? `<button type="button" id="table-profile" class="hero-profile" aria-label="Twój profil" aria-haspopup="dialog" aria-controls="player-profile" data-tooltip="Profil">
-         ${portrait}<span class="zone-tooltip hero-profile-label" aria-hidden="true">Profil</span>
-       </button>`
+      ? `<div class="hero-tools">
+         <button type="button" id="table-profile" class="hero-profile" aria-label="Twój profil" aria-haspopup="dialog" aria-controls="player-profile" data-tooltip="Profil">
+           ${portrait}<span class="zone-tooltip hero-profile-label" aria-hidden="true">Profil</span>
+         </button>
+         <button type="button" id="write-chat" class="zone-tooltip hero-chat-button" aria-haspopup="dialog" aria-controls="table-chat-dialog">Napisz</button>
+       </div>`
       : portrait;
     const seatStatus = player.folded ? 'spot-folded' : 'spot-active';
     const position = seatPositions[state.players.length][player.id];
@@ -246,7 +249,10 @@ const pokerView = (() => {
     ${presets.map(([label, amount], index) => `<button type="button" ${preflop && index === 2 ? 'id="raiseBlindPreset"' : ''} data-raise-to="${amount}" aria-pressed="false" ${canRaise && amount >= lowerLimit && amount <= max ? '' : 'disabled'}>${label}</button>`).join('')}
    </div>
   </div><div class="action-grid${complete ? ' round-complete' : ''}${outgoing ? ' round-transition' : ''}${returning ? ' round-start' : ''}">
-   <button class="fold" id="fold" ${canAct ? '' : 'disabled'} ${concealed}>Fold</button>
+   <div class="fold-controls" ${concealed}>
+    <button class="fold" id="fold" ${canAct ? '' : 'disabled'}>Fold</button>
+    <button class="auto-fold" id="autoFold" aria-label="Auto Fold" aria-pressed="${state.autoFold}" data-tooltip="Spasuj przy najbliższej okazji" ${active ? '' : 'disabled'}>Auto</button>
+   </div>
    <button class="call" id="call" ${canAct ? '' : 'disabled'} ${concealed}>${escapeHTML(callLabel)}</button>
    <button class="raise" id="raise" ${canRaise ? '' : 'disabled'} ${concealed}>${escapeHTML(raiseLabel)}</button>
    ${replacement}
@@ -319,6 +325,8 @@ const pokerView = (() => {
         find('#fold').addEventListener('click', () => game.act(0, { type: 'fold' }));
         find('#call').addEventListener('click', () => game.act(0, { type: 'call' }));
       }
+      const autoFold = find('#autoFold');
+      autoFold.addEventListener('click', () => autoFold.setAttribute('aria-pressed', String(game.toggleAutoFold())));
 
       const raise = find('#raise');
       if (raise.disabled) return;
@@ -403,7 +411,7 @@ const pokerView = (() => {
       }
       const sameSession = previousSessionId === state.sessionId;
       const logScroll = sameSession ? find('.log')?.scrollTop ?? 0 : 0;
-      const focusedControl = ['#showAnalysis', '#table-profile', '#skip-runout'].find(selector => {
+      const focusedControl = ['#showAnalysis', '#table-profile', '#write-chat', '#skip-runout', '#autoFold'].find(selector => {
         const control = find(selector);
         return control && control === document.activeElement;
       });

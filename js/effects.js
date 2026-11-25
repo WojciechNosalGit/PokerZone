@@ -26,6 +26,7 @@ function createPokerEffects(root) {
     sound.volume = 0.55;
   }
   sounds.uiClick.volume = 0.24;
+  sounds.dealHit.volume = 0.38;
   let enabled = true;
   let previous = null;
 
@@ -244,9 +245,12 @@ function createPokerEffects(root) {
     }
     const cards = [...seats.map(hand => hand[0]), ...seats.map(hand => hand[1])];
     play('shuffle', firstDeal ? stage : null);
-    for (let i = 0; i < cards.length; i++) {
+    const sweepRates = [0.96, 1.03, 0.94, 1];
+    for (let i = 0; i < cards.length; i += 2) {
       setTimeout(() => {
-        if (stage.isConnected) play('dealHit');
+        if (!stage.isConnected) return;
+        sounds.dealHit.playbackRate = sweepRates[(i / 2) % sweepRates.length];
+        play('dealHit');
       }, deal.shuffle + deal.flight + i * deal.interval - 8);
     }
     if (reducedMotion.matches) return;
