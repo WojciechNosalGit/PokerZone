@@ -1487,8 +1487,8 @@ dialog.zone-surface::after {
 }
 
 .profile-intro {
-  --profile-portrait-size: min(65cqi, 346px);
-  --profile-gallery-overlap: clamp(48px, 9cqi, 54px);
+  --profile-portrait-size: min(62cqi, 290px);
+  --profile-gallery-overlap: clamp(62px, 12cqi, 70px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) calc(var(--profile-portrait-size) - var(--profile-form-padding));
   min-block-size: calc(var(--profile-portrait-size) - var(--profile-gallery-overlap));
