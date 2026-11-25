@@ -288,9 +288,14 @@ body {
 }
 
 .sound-toggle {
-  background: #10212c;
-  border-color: #386272;
-  border-radius: 6px;
+  background: #0b1c27;
+  border-color: #3b6476;
+  border-radius: 50%;
+  color: #bfd5dd;
+}
+
+.sound-toggle:hover {
+  background: #173340;
 }
 
 .sound-toggle[aria-pressed="true"] {
