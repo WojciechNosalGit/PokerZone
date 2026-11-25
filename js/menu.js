@@ -273,6 +273,7 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
   });
   closeSetupButton.addEventListener('click', () => setup.close());
   setup.querySelector('#setup-profile').addEventListener('click', () => openProfile('setup'));
+  bindPokerHandGuide(document.querySelector('#hand-guide'), setup.querySelector('#open-hand-guide'));
   menuButton.addEventListener('click', () => openSetup(game.getState()?.phase === 'left' ? 'change' : 'new'));
   changeTableButton.addEventListener('click', () => openSetup(changingTable ? 'new' : 'change'));
   form.addEventListener('submit', async event => {

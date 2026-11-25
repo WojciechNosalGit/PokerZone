@@ -399,6 +399,7 @@ body {
   text-overflow: ellipsis;
 }
 
+.setup-help,
 .setup-stakes,
 .setup-buy-in,
 .setup-player-control,
@@ -409,6 +410,7 @@ body {
   border: 0;
 }
 
+.setup-help legend,
 .setup-stakes legend,
 .setup-buy-in legend,
 .setup-player-control legend,
@@ -419,10 +421,18 @@ body {
   font-weight: 650;
 }
 
+.setup-help-actions,
 .stake-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
+}
+
+.setup-help-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stake-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .stake-choice {
@@ -444,14 +454,88 @@ body {
   color: #ffda88;
 }
 
-.tutorial-choice {
+.help-choice {
   border-color: #43939d;
   background: #12323b;
   color: #b9f2e9;
 }
 
-.tutorial-choice:hover {
+.help-choice:hover {
   background: #1a4750;
+}
+
+#hand-guide {
+  overflow: hidden;
+  text-align: start;
+}
+
+#hand-guide[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+#hand-guide .zone-close {
+  flex: 0 0 38px;
+}
+
+.hand-guide-body {
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #376679 #0a202a;
+}
+
+.hand-guide-body p {
+  margin: 0;
+  color: #c4dbe1;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.hand-guide-list {
+  margin: 12px 0 0;
+  padding-inline: 30px 9px;
+}
+
+.hand-guide-list li {
+  padding: 10px 0;
+  border-top: 1px solid #245369;
+}
+
+.hand-guide-list li::marker {
+  color: var(--zone-gold);
+  font-weight: 750;
+}
+
+.hand-guide-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.hand-guide-entry h3 {
+  margin: 0 0 3px;
+  font-size: 1rem;
+}
+
+.hand-guide-cards {
+  display: flex;
+  gap: 4px;
+}
+
+.hand-guide-cards .card {
+  --face-rank: 16px;
+  --face-suit: 10px;
+  inline-size: 32px;
+  block-size: 44px;
+  border-radius: 5px;
+}
+
+@media (max-width: 510px) {
+  .hand-guide-entry {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 :is(.tutorial-active, .online-active) .header-bankroll {

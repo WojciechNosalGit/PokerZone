@@ -16,6 +16,7 @@
   <script defer src="js/game.js"></script>
   <script defer src="js/history.js"></script>
   <script defer src="js/view.js"></script>
+  <script defer src="js/hand-guide.js"></script>
   <script defer src="js/hand-review.js"></script>
   <script defer src="js/history-view.js"></script>
   <script defer src="js/effects.js"></script>
@@ -67,12 +68,17 @@
         </output>
       </div>
       <div class="setup-fields">
+        <fieldset class="setup-help">
+          <legend>Pomoc</legend>
+          <div class="setup-help-actions">
+            <button class="stake-choice help-choice" id="setup-tutorial" type="button" aria-controls="app">Samouczek</button>
+            <button class="stake-choice help-choice" id="open-hand-guide" type="button" aria-haspopup="dialog" aria-controls="hand-guide">Układy kart</button>
+          </div>
+        </fieldset>
         <fieldset class="setup-stakes">
           <legend>Stawki</legend>
           <input type="hidden" id="setup-stakes" name="bigBlind">
-          <div class="stake-options" id="setup-stake-options">
-            <button class="stake-choice tutorial-choice" id="setup-tutorial" type="button" aria-controls="app">Samouczek</button>
-          </div>
+          <div class="stake-options" id="setup-stake-options"></div>
         </fieldset>
         <fieldset class="setup-buy-in">
           <legend id="setup-buy-in-label">Wpisowe</legend>
@@ -113,6 +119,16 @@
       <a class="zone-art-button" id="open-history" href="#hand-history">Historia</a>
     </div>
     <p class="menu-status" data-menu-status role="status" hidden></p>
+  </dialog>
+  <dialog class="setup-dialog zone-dialog zone-surface" id="hand-guide" aria-labelledby="hand-guide-title">
+    <header class="zone-dialog-heading">
+      <h2 id="hand-guide-title">Układy kart</h2>
+      <button class="reset zone-close" id="close-hand-guide" type="button" aria-label="Zamknij układy kart" autofocus>×</button>
+    </header>
+    <div class="hand-guide-body" role="region" aria-label="Hierarchia układów" tabindex="0">
+      <p>W Texas Hold’em liczy się pięć najlepszych kart. Możesz użyć obu swoich kart, jednej albo żadnej i uzupełnić układ kartami ze stołu. Lista zaczyna się od najsilniejszego układu.</p>
+      <ol class="hand-guide-list"></ol>
+    </div>
   </dialog>
   <dialog class="setup-dialog zone-dialog zone-surface" id="online-dialog" aria-labelledby="online-title">
     <header class="zone-dialog-heading">
