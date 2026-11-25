@@ -160,7 +160,7 @@ const pokerGame = (() => {
     };
   }
 
-  function createGame(onChange, onHandFinished = () => {}, onAction = () => {}) {
+  function createGame(onChange, onHandFinished = () => {}, onAction = () => {}, rules = {}) {
     let state = null;
     let bankroll = startingBankroll;
     let paused = false;
@@ -434,14 +434,14 @@ const pokerGame = (() => {
       }
       const newBots = replaceBustedBots();
       const live = state.players.filter(player => player.stack > 0);
-      state.dealer = nextSeat(state.dealer, player => player.stack > 0);
+      state.dealer = rules.dealer?.() ?? nextSeat(state.dealer, player => player.stack > 0);
       state.handId = createId();
       state.handNo++;
       state.phase = 'betting';
       state.runoutFrom = null;
       state.board = [];
       state.potChips = [];
-      state.deck = shuffled(fullDeck());
+      state.deck = rules.deck?.(state) ?? shuffled(fullDeck());
       state.street = 'preflop';
       state.currentBet = 0;
       state.lastRaise = state.bigBlind;
@@ -781,6 +781,7 @@ const pokerGame = (() => {
     function continueTurn() {
       if (paused || !state || state.dealing) return;
       if (state.phase === 'finished' && state.timer === null) {
+        if (rules.manualNextHand) return;
         const finishedState = state;
         const token = state.epoch;
         state.timer = setTimeout(() => {
@@ -809,7 +810,7 @@ const pokerGame = (() => {
         const opponents = contenders().filter(other => other.id !== actor);
         const opponent = opponents.length === 1 ? opponents[0] : null;
         const price = Math.min(Math.max(0, state.currentBet - player.bet), player.stack);
-        const choice = pokerBots.chooseAction(player, {
+        const choice = rules.botAction?.(state) ?? pokerBots.chooseAction(player, {
           board: state.board,
           opponentCount: opponents.length,
           opponentStack: opponent?.stack ?? 0,

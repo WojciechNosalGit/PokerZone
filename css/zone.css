@@ -464,115 +464,69 @@ body {
   background: #1a4750;
 }
 
-#poker-tutorial {
-  width: min(560px, calc(100% - 28px));
+.tutorial-active .header-bankroll {
+  visibility: hidden;
 }
 
-.tutorial-heading {
+.tutorial-coach {
+  padding: 9px 12px;
+  border: 1px solid #3b6776;
+  border-radius: 7px;
+  background: #0b2532;
+}
+
+.tutorial-coach > div {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 3px 12px;
-  margin-block-end: 9px;
 }
 
-.tutorial-heading h3 {
+.tutorial-coach h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
 }
 
-.tutorial-heading span,
-.tutorial-seat-name {
+.tutorial-coach span {
   color: #c4ecea;
   font-size: 12px;
   font-weight: 700;
 }
 
-.tutorial-felt {
-  height: auto;
-  gap: 9px;
-  padding: 14px 8px;
-}
-
-.tutorial-seat {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-  inline-size: 100%;
-  text-align: center;
-}
-
-.tutorial-seat-name {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #102a34;
-}
-
-.tutorial-seat .tutorial-speech {
-  --chat-tail: 50%;
-  position: relative;
-  max-inline-size: min(100%, 360px);
-  margin: 0 0 6px;
-}
-
-.tutorial-pocket .card {
-  --face-rank: 18px;
-  --face-suit: 9px;
-  width: 32px;
-  height: 44px;
-  padding: 3px;
-  border-radius: 5px;
-}
-
-.tutorial-pot {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-block-end: 6px;
-  color: #bdf0e8;
+.tutorial-coach p {
+  margin: 4px 0 0;
   font-size: 13px;
 }
 
-.tutorial-pot strong,
-.tutorial-amount output {
-  color: var(--zone-gold);
-  font-variant-numeric: tabular-nums;
+.tutorial-coach button {
+  margin-block-start: 7px;
+  min-height: 33px;
+  font-size: 13px;
+}
+
+.tutorial-coach + .table-footer .action-grid > :is(.call, .fold, .raise):enabled {
+  --footer-edge: var(--zone-gold);
+  filter: brightness(1.15);
+}
+
+@media (min-width: 800px) {
+  .tutorial-active .table-panel {
+    position: relative;
+  }
+
+  .tutorial-coach {
+    position: absolute;
+    z-index: 5;
+    inset-block-start: 32%;
+    inset-inline-start: clamp(18px, 4vw, 52px);
+    width: min(23%, 225px);
+  }
 }
 
 .tutorial-best-card {
   outline: 2px solid var(--zone-gold);
   outline-offset: 1px;
-}
-
-.tutorial-prompt {
-  margin: 10px 0;
-  font-size: 14px;
-}
-
-.tutorial-amount {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 4ch;
-  gap: 3px 8px;
-  align-items: center;
-}
-
-.tutorial-amount label {
-  grid-column: 1 / -1;
-  font-weight: 650;
-}
-
-.tutorial-amount input {
-  width: 100%;
-  margin: 0;
-  accent-color: var(--zone-gold);
-}
-
-.tutorial-actions .zone-art-button {
-  flex: 1;
-  min-width: 0;
-  padding-inline: clamp(6px, 2.5vw, 14px);
-  text-align: center;
 }
 
 .stake-choice[aria-disabled="true"] {

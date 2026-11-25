@@ -47,7 +47,7 @@ function createPokerChat(root, dialog, game) {
     bubble.classList.toggle('seat-chat-below', below);
   }
 
-  function publish(player, text, reactionLabel) {
+  function publish(player, text, { reactionLabel, duration = 4700 } = {}) {
     clearMessage(player.id);
     const bubble = document.createElement('div');
     bubble.className = 'seat-chat-bubble';
@@ -58,7 +58,8 @@ function createPokerChat(root, dialog, game) {
       bubble.setAttribute('role', 'img');
       bubble.setAttribute('aria-label', `${player.name} — ${reactionLabel}`);
     }
-    const message = { bubble, name: player.name, timer: setTimeout(() => clearMessage(player.id), 4700) };
+    const timer = duration > 0 ? setTimeout(() => clearMessage(player.id), duration) : null;
+    const message = { bubble, name: player.name, timer };
     messages.set(player.id, message);
     positionMessage(player.id, message);
     if (!reducedMotion.matches) bubble.animate([
@@ -81,7 +82,7 @@ function createPokerChat(root, dialog, game) {
     const { icons, label } = botReactions[outcome];
     clearMessage(lastSpeaker);
     lastSpeaker = speaker.id;
-    publish(speaker, icons[pokerCards.randomIndex(icons.length)], label);
+    publish(speaker, icons[pokerCards.randomIndex(icons.length)], { reactionLabel: label });
   }
 
   function onChange(state, { restored = false, payouts = [] } = {}) {
@@ -133,5 +134,10 @@ function createPokerChat(root, dialog, game) {
     for (const [seat, message] of messages) positionMessage(seat, message);
   });
 
-  return { onChange };
+  function speak(player, text) {
+    if (text) publish(player, text, { duration: 0 });
+    else clearMessage(player.id);
+  }
+
+  return { onChange, speak };
 }

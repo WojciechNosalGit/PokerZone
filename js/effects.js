@@ -282,7 +282,7 @@ function createPokerEffects(root) {
     void motion.finished.then(removeFlight, removeFlight);
   }
 
-  function onChange(state, { restored = false, skippedRunout = false, payouts = [] } = {}) {
+  function onChange(state, { restored = false, skippedRunout = false, payouts = [], tutorial } = {}) {
     if (!state || state.phase === 'left') {
       previous = null;
       return 0;
@@ -292,8 +292,9 @@ function createPokerEffects(root) {
     const firstDeal = previous === null;
     const sameSession = previous?.sessionId === state.sessionId;
     const previousHandNo = previous?.handNo;
+    const handNumber = tutorial?.number ?? state.handNo;
     const newHand = state.phase !== 'gameover'
-      && (!previous || previous.sessionId !== state.sessionId || previous.handNo !== state.handNo);
+      && (!previous || previous.sessionId !== state.sessionId || previous.handNo !== handNumber);
     const gameEnded = state.phase === 'gameover'
       && (previous?.sessionId !== state.sessionId || previous?.phase !== 'gameover');
     const boardStart = newHand ? 0 : previous?.boardLength ?? 0;
@@ -314,7 +315,7 @@ function createPokerEffects(root) {
       ? state.players.filter(player => player.id !== 0 && player.hand.length === 2 && !player.folded) : [];
     const current = {
       sessionId: state.sessionId,
-      handNo: state.handNo,
+      handNo: handNumber,
       phase: state.phase,
       street: state.street,
       runoutFrom: state.runoutFrom,

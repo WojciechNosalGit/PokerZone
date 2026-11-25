@@ -229,7 +229,10 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
     refreshStakes();
     refreshSessionActions();
     game.pause();
-    if (!setup.open) setup.showModal();
+    if (!setup.open) {
+      setup.returnValue = '';
+      setup.showModal();
+    }
   }
 
   function openSessionDialog(action, trigger) {
@@ -262,7 +265,7 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
   });
 
   setup.addEventListener('close', () => {
-    if (!setup.open && !sessionDialog.open) game.resume();
+    if (!setup.open && !sessionDialog.open && setup.returnValue !== 'tutorial') game.resume();
   });
   setup.addEventListener('cancel', event => {
     const state = game.getState();

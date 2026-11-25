@@ -114,7 +114,7 @@ const pokerView = (() => {
     </li>`;
   }
 
-  function tableSeatHTML(player, state) {
+  function tableSeatHTML(player, state, tutorial) {
     const hero = player.id === 0;
     const participating = player.hand.length === 2;
     if (!hero && !participating) return '';
@@ -124,7 +124,7 @@ const pokerView = (() => {
     const turn = state.phase === 'betting' && !state.dealing && state.actor === player.id;
     const preset = pokerAvatars.isPreset(player.avatar) ? ` data-avatar-preset="${player.avatar}"` : '';
     const portrait = `<span class="seat-avatar"${preset} aria-hidden="true"></span>`;
-    const avatarControl = hero
+    const avatarControl = hero && !tutorial
       ? `<div class="hero-tools">
          <button type="button" id="table-profile" class="hero-profile" aria-label="Twój profil" aria-haspopup="dialog" aria-controls="player-profile" data-tooltip="Profil">
            ${portrait}<span class="zone-tooltip hero-profile-label" aria-hidden="true">Profil</span>
@@ -197,14 +197,17 @@ const pokerView = (() => {
     for (const outline of button.querySelectorAll('.next-hand-outline path')) outline.setAttribute('d', path);
   }
 
-  function controlsHTML(state, pot, min, outgoing, returning) {
+  function controlsHTML(state, pot, min, outgoing, returning, tutorial) {
     const { smallBlind, bigBlind } = state;
     const player = state.players[0];
     const active = state.phase === 'betting' && player.hand.length === 2 && !player.folded && !player.allIn;
     const canAct = active && !state.dealing && state.actor === 0;
     const toCall = active ? Math.max(0, state.currentBet - player.bet) : 0;
-    const max = player.bet + player.stack;
-    const canRaise = canAct && player.canRaise && max > state.currentBet;
+    const allows = action => !tutorial || tutorial.actions?.includes(action);
+    const canFold = active && allows('fold') && (!tutorial || canAct);
+    const canCall = canAct && allows('call');
+    const max = Math.min(player.bet + player.stack, tutorial?.raiseMax ?? Infinity);
+    const canRaise = canAct && allows('raise') && player.canRaise && max > state.currentBet;
     const lowerLimit = Math.min(min, max);
     const target = Math.min(max, Math.max(lowerLimit, defaultRaiseBigBlinds * bigBlind));
     const alignedLimits = lowerLimit % smallBlind === 0 && max % smallBlind === 0;
@@ -222,14 +225,17 @@ const pokerView = (() => {
     const presets = preflop
       ? [['2 BB', 2 * bigBlind], ['2,5 BB', preflopTarget], [formatBigBlinds(customBlinds), Math.round(customBlinds * bigBlind)]]
       : [['30% puli', raiseByPot(0.3)], ['50% puli', raiseByPot(0.5)], ['70% puli', raiseByPot(0.7)]];
-    presets.push(['All-in', max]);
+    presets.push(['All-in', player.bet + player.stack]);
     const complete = state.phase === 'finished' || state.phase === 'gameover';
     const concealed = complete ? 'aria-hidden="true"' : '';
     const amount = canRaise ? money(target) : outgoing?.amount ?? '';
     const callLabel = outgoing?.call ?? (active ? toCall === 0 ? 'Check' : 'Call ' + money(Math.min(toCall, player.stack)) : 'Check / Call');
     const wagerName = avatarActionNames.get(wagerKind(state));
     const raiseLabel = outgoing?.raise ?? (canRaise ? wagerName + ' ' + money(target) : wagerName);
-    const replacement = state.phase === 'finished' ? nextHandButton : '';
+    const next = tutorial
+      ? `<button class="next-hand action-replacement" id="nextHand" type="button">${escapeHTML(tutorial.nextLabel)} <span aria-hidden="true">→</span></button>`
+      : nextHandButton;
+    const replacement = state.phase === 'finished' ? next : '';
 
     function stepperHTML(suffix, label, stepLabel, range) {
       const showBlinds = suffix && !preflop;
@@ -249,8 +255,8 @@ const pokerView = (() => {
     ${presets.map(([label, amount], index) => `<button type="button" ${preflop && index === 2 ? 'id="raiseBlindPreset"' : ''} data-raise-to="${amount}" aria-pressed="false" ${canRaise && amount >= lowerLimit && amount <= max ? '' : 'disabled'}>${label}</button>`).join('')}
    </div>
   </div><div class="action-grid${complete ? ' round-complete' : ''}${outgoing ? ' round-transition' : ''}${returning ? ' round-start' : ''}">
-   <button class="fold" id="fold" aria-pressed="${state.foldPending}" data-tooltip="Spasuj, gdy nadejdzie Twoja kolej." ${active ? '' : 'disabled'} ${concealed}>Fold<span class="fold-pending-indicator" aria-hidden="true">✓</span></button>
-   <button class="call" id="call" ${canAct ? '' : 'disabled'} ${concealed}>${escapeHTML(callLabel)}</button>
+   <button class="fold" id="fold" aria-pressed="${state.foldPending}" data-tooltip="Spasuj, gdy nadejdzie Twoja kolej." ${canFold ? '' : 'disabled'} ${concealed}>Fold<span class="fold-pending-indicator" aria-hidden="true">✓</span></button>
+   <button class="call" id="call" ${canCall ? '' : 'disabled'} ${concealed}>${escapeHTML(callLabel)}</button>
    <button class="raise" id="raise" ${canRaise ? '' : 'disabled'} ${concealed}>${escapeHTML(raiseLabel)}</button>
    ${replacement}
   </div>`;
@@ -278,7 +284,7 @@ const pokerView = (() => {
     return `<span class="table-corner hand-status">Układ <strong>${name}</strong></span>`;
   }
 
-  function createView(root, game, openProfile) {
+  function createView(root, game, openProfile, { nextHand = game.startHand, replay } = {}) {
     const find = selector => root.querySelector(selector);
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const outlineResize = typeof ResizeObserver === 'function'
@@ -293,7 +299,7 @@ const pokerView = (() => {
     }
 
     function bindControls(turn, runningOut) {
-      find('#table-profile').addEventListener('click', openProfile);
+      find('#table-profile')?.addEventListener('click', openProfile);
       if (runningOut) {
         find('.felt').addEventListener('click', event => {
           const button = event.target.closest('button');
@@ -310,14 +316,17 @@ const pokerView = (() => {
           // Ustawienie nadal działa dla otwartej gry.
         }
       });
-      const nextHand = find('#nextHand');
-      if (nextHand) {
-        layoutNextHandOutline(nextHand);
-        outlineResize?.observe(nextHand);
-        nextHand.addEventListener('click', () => {
-          if (game.getState().phase === 'finished') game.startHand();
+      const nextButton = find('#nextHand');
+      if (nextButton) {
+        if (nextButton.querySelector('.next-hand-outline')) {
+          layoutNextHandOutline(nextButton);
+          outlineResize?.observe(nextButton);
+        }
+        nextButton.addEventListener('click', () => {
+          if (game.getState().phase === 'finished') nextHand();
         });
       }
+      find('#tutorial-replay')?.addEventListener('click', replay);
       if (turn) find('#call').addEventListener('click', () => game.act(0, { type: 'call' }));
       const fold = find('#fold');
       fold.addEventListener('click', () => fold.setAttribute('aria-pressed', String(game.requestFold())));
@@ -395,7 +404,7 @@ const pokerView = (() => {
       selectRaise(target);
     }
 
-    return function render(state, { restored = false } = {}) {
+    return function render(state, { restored = false, tutorial } = {}) {
       if (!state || state.phase === 'left') {
         outlineResize?.disconnect();
         previousSessionId = undefined;
@@ -421,7 +430,7 @@ const pokerView = (() => {
           amount: find('#raiseTo')?.value, call: find('#call')?.textContent, raise: find('#raise')?.textContent,
           slider: find('#raiseSlider'), blindSlider: find('#raiseSliderSecondary')
         } : null;
-      const previousNextHand = !restored && sameSession && previousPhase === 'finished'
+      const previousNextHand = !tutorial && !restored && sameSession && previousPhase === 'finished'
         && state.phase === 'betting' && !reducedMotion.matches ? find('#nextHand') : null;
       const departingNextHand = previousNextHand?.cloneNode(true);
       if (departingNextHand) {
@@ -437,12 +446,13 @@ const pokerView = (() => {
       const pot = game.pot();
       const stats = state.stats;
       const winRate = game.bigBlindsPer100();
+      const handNumber = tutorial?.number ?? state.handNo;
       const percent = count => stats.hands ? Math.round(count / stats.hands * 100) + '%' : '—';
       outlineResize?.disconnect();
       root.innerHTML = `<div class="layout"><div class="table-panel">
- <div class="felt" data-seats="${state.players.length}"${runningOut ? ' data-runout' : ''} role="group" aria-label="Stół pokerowy">
+ <div class="felt" data-seats="${state.players.length}"${tutorial ? ' data-tutorial' : ''}${runningOut ? ' data-runout' : ''} role="group" aria-label="Stół pokerowy">
    <div class="table-corner table-round">
-     <span class="table-hand-cards" role="img" aria-label="Rozdanie ${state.handNo}"><strong aria-hidden="true">${money(state.handNo)}</strong></span>
+     <span class="table-hand-cards" role="img" aria-label="Rozdanie ${handNumber}"><strong aria-hidden="true">${money(handNumber)}</strong></span>
      <span class="table-stakes">NL ${state.smallBlind}/${state.bigBlind}</span>
    </div>
    <div class="table-corner table-players" role="img" aria-label="Gracze w grze: ${playersInGame}">
@@ -455,12 +465,17 @@ const pokerView = (() => {
      </div>
      <div class="board-row"><div class="board">${Array.from({ length: 5 }, (_, i) => cardHTML(state.board[i] || null)).join('')}</div><div class="deal-deck card back" aria-hidden="true"></div></div>
    </div>
-   ${state.players.map(seat => tableSeatHTML(seat, state)).join('')}
+   ${state.players.map(seat => tableSeatHTML(seat, state, tutorial)).join('')}
    <div class="table-corner table-status" role="status">${statusHTML(state, player)}</div>
    ${showHand ? handStatusHTML(player.hand, state.board) : ''}
  </div>
+ ${tutorial ? `<section class="tutorial-coach" aria-label="Samouczek">
+     <div><h2>${escapeHTML(tutorial.title)}</h2><span>Rozdanie ${tutorial.number} z ${tutorial.total}</span></div>
+     <p>${escapeHTML(tutorial.prompt)}</p>
+     ${finished ? '<button id="tutorial-replay" class="zone-art-button" type="button">Powtórz rozdanie</button>' : ''}
+   </section>` : ''}
  <div class="table-footer">
-   <div class="controls zone-surface">${controlsHTML(state, pot, game.minRaiseTo(), outgoing, Boolean(departingNextHand))}</div>
+   <div class="controls zone-surface">${controlsHTML(state, pot, game.minRaiseTo(), outgoing, Boolean(departingNextHand), tutorial)}</div>
  </div>
  </div><aside class="session-panels"><section class="panel"><h2>Twój styl gry (ta sesja)</h2>
  <div class="statline"><span>Rozdania</span><strong>${stats.hands}</strong></div>
@@ -476,6 +491,11 @@ const pokerView = (() => {
  <p class="hint log-analysis">Equity to szacowany udział w puli. Pot odds to koszt sprawdzenia w stosunku do puli po sprawdzeniu.</p>
  </section></aside></div>`;
       pokerAvatars.setAvatar(find('.hero-seat .seat-avatar'), player.avatar);
+      if (tutorial?.best) {
+        const board = root.querySelectorAll('.board .card');
+        tutorial.best.forEach(index => board[index].classList.add('tutorial-best-card'));
+        for (const card of root.querySelectorAll('.hero-seat .pocket-cards .card')) card.classList.add('tutorial-best-card');
+      }
       if (departingNextHand) {
         departingNextHand.addEventListener('animationend', () => departingNextHand.remove(), { once: true });
         departingNextHand.addEventListener('animationcancel', () => departingNextHand.remove(), { once: true });

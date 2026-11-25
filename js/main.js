@@ -11,11 +11,17 @@
   const profileName = setupProfile.querySelector('.header-profile-name');
   const headerBalance = document.querySelector('#header-bankroll [data-bankroll-amount]');
   const leaveTableAction = document.querySelector('#leave-table-action');
+  const endTutorialButton = document.querySelector('#end-tutorial');
   const lossDialog = document.querySelector('#lossDialog');
   const acknowledgeLoss = lossDialog.querySelector('#acknowledgeLoss');
   const { formatAmount } = pokerGame;
   const effects = createPokerEffects(root);
+  let training = false;
   const game = pokerGame.createGame((state, options) => {
+    if (!training) displayGame(state, options);
+  }, history.add, effects.onAction);
+
+  function displayGame(state, options) {
     dismissTableTooltip(root);
     render(state, options);
     updateSetupProfile(state?.players[0] ?? profile.current());
@@ -38,7 +44,7 @@
     } else if (lossDialog.open) {
       lossDialog.close();
     }
-  }, history.add, effects.onAction);
+  }
   lossDialog.addEventListener('cancel', event => event.preventDefault());
   acknowledgeLoss.addEventListener('click', game.resetGame);
   const render = pokerView.createView(root, game, () => openProfile('table'));
@@ -46,6 +52,22 @@
   const setup = document.querySelector('#game-setup');
   const profileDialog = document.querySelector('#player-profile');
   const chat = createPokerChat(root, document.querySelector('#table-chat-dialog'), game);
+  let tutorialSpeech;
+  let tutorialSession;
+  const tutorial = createPokerTutorial((state, options) => {
+    if (!training) return;
+    dismissTableTooltip(root);
+    renderTutorial(state, options);
+    effects.onChange(state, options);
+    chat.onChange(state, { restored: true });
+    const speech = options.tutorial.speech;
+    if (tutorialSession !== state.sessionId || speech !== tutorialSpeech) {
+      tutorialSession = state.sessionId;
+      tutorialSpeech = speech;
+      chat.speak(state.players[1], speech);
+    }
+  }, effects.onAction, () => finishTutorial(true));
+  const renderTutorial = pokerView.createView(root, tutorial.game, undefined, { nextHand: tutorial.next, replay: tutorial.replay });
 
   function updateBankroll() {
     const amount = formatAmount(game.getBankroll());
@@ -73,7 +95,35 @@
     profile.open(game.getState()?.players[0]);
   }
   const openSetup = bindPokerMenu(menuButton, setup, game, effects, openProfile);
-  bindPokerTutorial(document.querySelector('#poker-tutorial'), setup);
+  const tutorialButton = setup.querySelector('#setup-tutorial');
+  tutorialButton.addEventListener('click', () => {
+    if (!setup.open || training) return;
+    training = true;
+    game.pause();
+    setup.close('tutorial');
+    document.body.classList.add('tutorial-active');
+    leaveTableAction.hidden = true;
+    endTutorialButton.hidden = false;
+    menuButton.hidden = true;
+    historyPanel.hidden = true;
+    tutorial.start(profile.current());
+    endTutorialButton.focus({ preventScroll: true });
+  });
+
+  function finishTutorial(readyToPlay = false) {
+    if (!training) return;
+    training = false;
+    tutorial.game.resetGame();
+    document.body.classList.remove('tutorial-active');
+    endTutorialButton.hidden = true;
+    menuButton.hidden = false;
+    const state = game.getState();
+    displayGame(state, { restored: true });
+    if (state && state.phase !== 'left') openSetup();
+    (readyToPlay ? setup.querySelector('#start-game') : tutorialButton).focus({ preventScroll: true });
+  }
+
+  endTutorialButton.addEventListener('click', () => finishTutorial());
   leaveTableAction.querySelector('#leaveTable').addEventListener('click', game.leaveTable);
   profileDialog.addEventListener('close', () => {
     if (profileDialog.open) return;

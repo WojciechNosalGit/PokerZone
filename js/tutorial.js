@@ -1,130 +1,150 @@
 'use strict';
 
-function bindPokerTutorial(dialog, setup) {
+function createPokerTutorial(onChange, onAction, finish) {
   const ranks = { A: 14, K: 13, Q: 12, J: 11 };
-  const street = { 0: 'Preflop', 3: 'Flop', 4: 'Turn', 5: 'River' };
   const cards = list => list.split(' ').map(code => {
     const rank = code.slice(0, -1);
     return { r: ranks[rank] ?? Number(rank), s: code.at(-1) };
   });
-  const hands = [
+  const lessons = [
     {
       title: 'Od blindów do showdownu',
+      dealer: 0,
       hero: cards('K♥ Q♥'), bot: cards('Q♦ J♠'), board: cards('Q♣ 7♦ 2♠ K♣ 5♦'),
-      heroPosition: 'BTN / SB', botPosition: 'BB',
-      steps: () => [
-        { visible: 0, pot: 6, dealt: false, speech: 'Jestem na BB. Wpłacam 4 żetony do puli, zanim dostaniemy karty.', prompt: 'Gracie przy stawkach NL 2/4. Na small blindzie wpłacasz 2 obowiązkowe żetony. Przycisk dealera (BTN) będzie się przesuwał co rozdanie.', actions: ['Dalej'] },
-        { visible: 0, pot: 6, prompt: 'Masz króla i damę. Dołóż 2 żetony przyciskiem Call, żeby wyrównać big blind.', actions: ['Call 2'] },
-        { visible: 3, pot: 8, speech: 'Check. Możesz zaczekać na kolejną kartę tak jak ja.', prompt: 'Flop to pierwsze trzy wspólne karty. Dama ze stołu i Twoja dama tworzą parę.', actions: ['Check'] },
-        { visible: 4, pot: 8, prompt: 'Na turnie doszedł król. Masz teraz dwie pary. Ada czeka, więc możesz kliknąć Check.', actions: ['Check'] },
-        { visible: 5, pot: 8, speech: 'Check na riverze. Po Twoim ruchu porównamy karty.', prompt: 'River to ostatnia wspólna karta. Kliknij Check, żeby zobaczyć showdown.', actions: ['Check'] },
-        { visible: 5, pot: 8, reveal: true, best: [0, 1, 3], speech: 'Mam parę dam. Twoje dwie pary wygrywają.', prompt: 'Wygrywasz 8 żetonów. Podświetlone pięć kart tworzy Twój najlepszy układ.', actions: ['Następne rozdanie', 'Powtórz rozdanie'] }
-      ]
+      action: () => ({ type: 'call' }),
+      guide(state) {
+        if (state.dealing) return {
+          speech: 'Jestem na big blindzie. Wpłacam 4 żetony, zanim dostaniemy karty.',
+          prompt: 'Gracie na NL 2/4. Na small blindzie wpłacasz 2 żetony. W grze jeden na jednego small blind i przycisk dealera (D) są u tego samego gracza.'
+        };
+        if (state.phase === 'finished') return {
+          speech: 'Mam parę dam. Twoje dwie pary wygrywają.',
+          prompt: 'Wygrywasz 8 żetonów. Podświetlone pięć kart tworzy Twój najlepszy układ.',
+          best: [0, 1, 3]
+        };
+        if (state.street === 'preflop') return {
+          actions: ['call'],
+          prompt: 'Masz króla i damę. Kliknij Call, żeby dołożyć 2 żetony i wyrównać big blind.'
+        };
+        const prompts = {
+          flop: 'Flop to pierwsze trzy wspólne karty. Dama ze stołu i Twoja dama tworzą parę. Kliknij Check, żeby zobaczyć następną kartę.',
+          turn: 'Na turnie doszedł król. Masz dwie pary. Kliknij Check.',
+          river: 'River to ostatnia wspólna karta. Kliknij Check, żeby przejść do showdownu, czyli porównania układów.'
+        };
+        const speech = state.players[1].lastAction?.kind === 'check' ? 'Check. Czekam na Twój ruch.' : undefined;
+        return { actions: ['call'], speech, prompt: prompts[state.street] };
+      }
     },
     {
       title: 'Check, Bet i Raise',
+      dealer: 1,
       hero: cards('A♥ 9♥'), bot: cards('K♦ J♣'), board: cards('A♣ 9♠ 4♦ 3♠ 8♦'),
-      heroPosition: 'BB', botPosition: 'BTN / SB',
-      steps: ({ bet, raise }) => [
-        { visible: 0, pot: 8, speech: 'Dołożyłam 2 żetony do Twojego big blinda.', prompt: 'Jesteś na BB i masz już wpłacone 4. Wybierz Check, żeby zobaczyć flop bez dokładania żetonów.', actions: ['Check'] },
-        { visible: 3, pot: 8, prompt: 'Masz dwie pary i ruch jest Twój. Ustaw kwotę suwakiem. Pierwszy zakład na tej ulicy to Bet.', actions: ['Bet'], range: { min: 4, max: 12, value: bet } },
-        { visible: 4, pot: 8 + 2 * bet, speech: `Sprawdziłam Twój zakład za ${bet} żetonów.`, prompt: 'Na turnie zaczyna się nowa runda zakładów. Kliknij Check i zobacz, co zrobi Ada.', actions: ['Check'] },
-        { visible: 4, pot: 16 + 2 * bet, speech: 'Stawiam 8 żetonów. Możesz je sprawdzić, podbić albo spasować.', prompt: 'Ustaw łączną kwotę swojego podbicia suwakiem i kliknij Raise. Do podbicia zakładu 8 potrzeba co najmniej 16.', actions: ['Raise'], range: { min: 16, max: 32, value: raise } },
-        { visible: 4, pot: 24 + 2 * bet, speech: 'Po Twoim podbiciu pasuję.', prompt: `Wygrywasz pulę, a ${raise - 8} żetonów z niesprawdzonej części podbicia wraca do Ciebie. Karty Ady zostają zakryte.`, actions: ['Następne rozdanie', 'Powtórz rozdanie'] }
-      ]
+      action(state) {
+        if (state.street !== 'turn') return { type: 'call' };
+        return state.currentBet === 0 ? { type: 'raise', target: 8 } : { type: 'fold' };
+      },
+      guide(state) {
+        if (state.phase === 'finished') {
+          const [hero, bot] = state.players;
+          return {
+            speech: 'Po Twoim podbiciu pasuję.',
+            prompt: `Wygrywasz pulę. Niesprawdzona część podbicia, ${hero.contributed - bot.contributed} żetonów, wraca do Ciebie. Karty Ady zostają zakryte.`
+          };
+        }
+        if (state.street === 'preflop') return {
+          actions: ['call'], speech: state.actor === 0
+            ? 'Dołożyłam 2 żetony do Twojego big blinda.' : 'Mam small blind. Dołożę 2 żetony do Twojego big blinda.',
+          prompt: 'Jesteś na BB i masz już wpłacone 4. Gdy Ada wyrówna blind, kliknij Check, żeby zobaczyć flop.'
+        };
+        if (state.street === 'flop') return {
+          actions: ['raise'], raiseMax: 12,
+          prompt: 'Masz dwie pary. Ustaw kwotę suwakiem i kliknij Bet. Tak nazywa się pierwszy zakład na tej ulicy.'
+        };
+        if (state.currentBet === 0) return {
+          actions: ['call'], speech: 'Sprawdziłam Twój zakład na flopie.',
+          prompt: 'Na turnie zaczyna się nowa runda zakładów. Kliknij Check i zobacz, co zrobi Ada.'
+        };
+        return {
+          actions: ['raise'], raiseMax: 32, speech: 'Stawiam 8 żetonów.',
+          prompt: 'Wybierz łączną kwotę i kliknij Raise. Żeby podbić zakład za 8, musisz postawić co najmniej 16 żetonów.'
+        };
+      }
     },
     {
       title: 'Kiedy spasować',
+      dealer: 0,
       hero: cards('7♣ 2♦'), bot: cards('A♥ J♣'), board: cards('A♠ K♦ 9♣ 3♠ 5♦'),
-      heroPosition: 'BTN / SB', botPosition: 'BB',
-      steps: ({ called }) => [
-        { visible: 3, pot: 24, speech: 'Na flopie stawiam 16 żetonów.', prompt: 'Na stole leżą as, król i dziewiątka. Twoja ręka nie ma pary. Sprawdzenie kosztuje 16 żetonów. Wybierz ruch, żeby zobaczyć jego skutki.', actions: ['Fold', 'Call 16'] },
-        called
-          ? { visible: 5, pot: 40, reveal: true, speech: 'Mam parę asów i biorę pulę.', prompt: 'Po Call dołożyłeś 16 żetonów. Oboje przeczekaliście turn i river. Na showdownie Twoja wysoka karta przegrała z parą asów.' }
-          : { visible: 3, pot: 24, speech: 'Po Twoim spasowaniu biorę pulę.', prompt: 'Kończysz rozdanie i zachowujesz 16 żetonów, które kosztowałoby sprawdzenie. Możesz powtórzyć rozdanie i wybrać Call.' }
-      ]
+      action: state => state.street === 'flop' && state.currentBet === 0
+        ? { type: 'raise', target: 16 } : { type: 'call' },
+      guide(state) {
+        if (state.phase === 'finished') return state.players[0].folded
+          ? { speech: 'Po Twoim spasowaniu biorę pulę.', prompt: 'Zachowujesz 16 żetonów, które kosztowałoby sprawdzenie. Możesz powtórzyć rozdanie i wybrać Call.' }
+          : { speech: 'Mam parę asów i biorę pulę.', prompt: 'Dołożyłeś 16 żetonów na flopie. Na showdownie Twoja wysoka karta przegrywa z parą asów. Możesz powtórzyć rozdanie i wybrać Fold.' };
+        if (state.street === 'preflop') return {
+          actions: ['call'], prompt: 'Dołóż 2 żetony przyciskiem Call, żeby zobaczyć, jak rozwinie się rozdanie z siódemką i dwójką.'
+        };
+        if (state.street === 'flop' && state.currentBet > 0) return {
+          actions: ['fold', 'call'], speech: 'Na flopie stawiam 16 żetonów.',
+          prompt: 'Nie masz pary. Call kosztuje 16 żetonów. Wybierz Call albo Fold, żeby zobaczyć skutek swojej decyzji.'
+        };
+        if (state.street === 'flop') return { prompt: 'Na flopie pierwsza zagrywa Ada. Zobacz, ile postawi.' };
+        return { actions: ['call'], prompt: 'Kliknij Check, żeby zobaczyć, jak zakończy się rozdanie.' };
+      }
     }
   ];
 
-  const content = dialog.querySelector('#tutorial-step');
-  const openButton = setup.querySelector('#setup-tutorial');
-  const { cardHTML, escapeHTML } = pokerView;
-  let handIndex = 0;
-  let stepIndex = 0;
-  let play;
+  let index = 0;
+  const current = () => lessons[index];
 
-  function bestCard(card) {
-    return cardHTML(card).replace('class="card ', 'class="card tutorial-best-card ');
+  function dealLesson() {
+    const { dealer, hero, bot, board } = current();
+    const reserved = [...hero, ...bot, ...board];
+    const remaining = pokerCards.fullDeck().filter(card =>
+      !reserved.some(other => other.r === card.r && other.s === card.s));
+    const [burnFlop, burnTurn, burnRiver] = remaining.splice(0, 3);
+    const [first, second] = dealer === 0 ? [bot, hero] : [hero, bot];
+    const draw = [first[0], second[0], first[1], second[1],
+      burnFlop, ...board.slice(0, 3), burnTurn, board[3], burnRiver, board[4]];
+    return [...remaining, ...draw.reverse()];
   }
 
-  function render() {
-    const hand = hands[handIndex];
-    const step = hand.steps(play)[stepIndex];
-    const actions = step.actions ?? ['Zagraj samodzielnie', 'Powtórz rozdanie'];
-    const board = hand.board.map((card, index) => {
-      if (index >= step.visible) return cardHTML(null);
-      return step.best?.includes(index) ? bestCard(card) : cardHTML(card);
-    }).join('');
-    const botCards = hand.bot.map(card => cardHTML(step.reveal ? card : step.dealt === false ? null : 'back')).join('');
-    const heroCards = hand.hero.map(card => step.best ? bestCard(card) : cardHTML(step.dealt === false ? null : card)).join('');
-    const range = step.range;
+  const game = pokerGame.createGame((state, options) => {
+    if (!state) return;
+    const lesson = current();
+    const guidance = lesson.guide(state);
+    const last = index === lessons.length - 1;
+    onChange(state, {
+      ...options,
+      tutorial: {
+        ...guidance,
+        number: index + 1,
+        total: lessons.length,
+        title: lesson.title,
+        nextLabel: last ? 'Zagraj samodzielnie' : 'Następne rozdanie'
+      }
+    });
+  }, undefined, onAction, {
+    dealer: () => current().dealer,
+    deck: dealLesson,
+    botAction: state => current().action(state),
+    manualNextHand: true
+  });
 
-    content.innerHTML = `<div class="tutorial-heading"><h3>${hand.title}</h3><span>Rozdanie ${handIndex + 1} z ${hands.length}</span></div>
-    <div class="felt tutorial-felt">
-      <div class="tutorial-seat">
-        ${step.speech ? `<p class="seat-chat-bubble tutorial-speech" aria-live="polite">${escapeHTML(step.speech)}</p>` : ''}
-        <span class="tutorial-seat-name">Ada · ${hand.botPosition}</span>
-        <div class="cards tutorial-pocket" aria-label="Karty Ady">${botCards}</div>
-      </div>
-      <div class="tutorial-board">
-        <div class="tutorial-pot">${step.reveal ? 'Showdown' : street[step.visible]} <strong>Pula ${step.pot}</strong></div>
-        <div class="board" aria-label="Karty wspólne">${board}</div>
-      </div>
-      <div class="tutorial-seat">
-        <div class="cards tutorial-pocket" aria-label="Twoje karty">${heroCards}</div>
-        <span class="tutorial-seat-name">Ty · ${hand.heroPosition}</span>
-      </div>
-    </div>
-    <p class="tutorial-prompt" aria-live="polite">${escapeHTML(step.prompt)}</p>
-    ${range ? `<div class="tutorial-amount"><label for="tutorial-wager">Wysokość zakładu</label><input id="tutorial-wager" type="range" min="${range.min}" max="${range.max}" step="2" value="${range.value}"><output for="tutorial-wager">${range.value}</output></div>` : ''}
-    <div class="setup-controls tutorial-actions">${actions.map(action => `<button class="zone-art-button${action === 'Fold' ? ' zone-cancel-button' : ''}" type="button" data-tutorial-action="${action}">${action}</button>`).join('')}</div>`;
-    if (dialog.open) focusStep();
+  const replay = () => game.newGame({ playerCount: 2 });
+
+  function start(profile) {
+    index = 0;
+    game.setHeroProfile(profile);
+    replay();
   }
 
-  function focusStep() {
-    content.querySelector('input, [data-tutorial-action]')?.focus({ preventScroll: true });
+  function next() {
+    if (index === lessons.length - 1) finish();
+    else {
+      index++;
+      replay();
+    }
   }
 
-  function startHand(index) {
-    handIndex = index;
-    stepIndex = 0;
-    play = { bet: 8, raise: 24, called: false };
-    render();
-  }
-
-  openButton.addEventListener('click', () => {
-    if (dialog.open) return;
-    dialog.returnValue = '';
-    startHand(0);
-    dialog.showModal();
-    focusStep();
-  });
-  dialog.querySelector('#close-tutorial').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('close', () => {
-    if (dialog.returnValue === 'play') setup.querySelector('#start-game').focus();
-  });
-  content.addEventListener('input', event => {
-    if (event.target.id === 'tutorial-wager') content.querySelector('output').value = event.target.value;
-  });
-  content.addEventListener('click', event => {
-    const action = event.target.closest('[data-tutorial-action]')?.dataset.tutorialAction;
-    if (!action) return;
-    if (action === 'Zagraj samodzielnie') { dialog.close('play'); return; }
-    if (action === 'Powtórz rozdanie') { startHand(handIndex); return; }
-    if (action === 'Następne rozdanie') { startHand(handIndex + 1); return; }
-    if (action === 'Bet' || action === 'Raise') play[action.toLowerCase()] = content.querySelector('input').valueAsNumber;
-    if (action === 'Call 16') play.called = true;
-    stepIndex++;
-    render();
-  });
+  return { game, start, replay, next };
 }
