@@ -59,14 +59,14 @@
     dismissTableTooltip(root);
     renderTutorial(state, options);
     effects.onChange(state, options);
-    chat.onChange(state, { restored: true });
+    chat.onChange(state, options.tutorial.practice ? options : { restored: true });
     const speech = options.tutorial.speech;
     if (tutorialSession !== state.sessionId || speech !== tutorialSpeech) {
       tutorialSession = state.sessionId;
       tutorialSpeech = speech;
       chat.speak(state.players[1], speech);
     }
-  }, effects.onAction, () => finishTutorial(true));
+  }, effects.onAction);
   const renderTutorial = pokerView.createView(root, tutorial.game, undefined, { nextHand: tutorial.next, replay: tutorial.replay });
 
   function updateBankroll() {
@@ -110,7 +110,7 @@
     endTutorialButton.focus({ preventScroll: true });
   });
 
-  function finishTutorial(readyToPlay = false) {
+  function finishTutorial() {
     if (!training) return;
     training = false;
     tutorial.game.resetGame();
@@ -120,10 +120,10 @@
     const state = game.getState();
     displayGame(state, { restored: true });
     if (state && state.phase !== 'left') openSetup();
-    (readyToPlay ? setup.querySelector('#start-game') : tutorialButton).focus({ preventScroll: true });
+    tutorialButton.focus({ preventScroll: true });
   }
 
-  endTutorialButton.addEventListener('click', () => finishTutorial());
+  endTutorialButton.addEventListener('click', finishTutorial);
   leaveTableAction.querySelector('#leaveTable').addEventListener('click', game.leaveTable);
   profileDialog.addEventListener('close', () => {
     if (profileDialog.open) return;

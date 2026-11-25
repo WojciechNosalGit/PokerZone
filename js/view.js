@@ -203,8 +203,9 @@ const pokerView = (() => {
     const active = state.phase === 'betting' && player.hand.length === 2 && !player.folded && !player.allIn;
     const canAct = active && !state.dealing && state.actor === 0;
     const toCall = active ? Math.max(0, state.currentBet - player.bet) : 0;
-    const allows = action => !tutorial || tutorial.actions?.includes(action);
-    const canFold = active && allows('fold') && (!tutorial || canAct);
+    const guided = tutorial && !tutorial.practice;
+    const allows = action => !guided || tutorial.actions?.includes(action);
+    const canFold = active && allows('fold') && (!guided || canAct);
     const canCall = canAct && allows('call');
     const max = Math.min(player.bet + player.stack, tutorial?.raiseMax ?? Infinity);
     const canRaise = canAct && allows('raise') && player.canRaise && max > state.currentBet;
@@ -232,10 +233,11 @@ const pokerView = (() => {
     const callLabel = outgoing?.call ?? (active ? toCall === 0 ? 'Check' : 'Call ' + money(Math.min(toCall, player.stack)) : 'Check / Call');
     const wagerName = avatarActionNames.get(wagerKind(state));
     const raiseLabel = outgoing?.raise ?? (canRaise ? wagerName + ' ' + money(target) : wagerName);
-    const next = tutorial
+    const refillPractice = tutorial?.practice && state.phase === 'gameover';
+    const next = guided || refillPractice
       ? `<button class="next-hand action-replacement" id="nextHand" type="button">${escapeHTML(tutorial.nextLabel)} <span aria-hidden="true">→</span></button>`
       : nextHandButton;
-    const replacement = state.phase === 'finished' ? next : '';
+    const replacement = state.phase === 'finished' || refillPractice ? next : '';
 
     function stepperHTML(suffix, label, stepLabel, range) {
       const showBlinds = suffix && !preflop;
@@ -298,7 +300,7 @@ const pokerView = (() => {
       // Widoczność można zmienić także wtedy, gdy przeglądarka blokuje zapis preferencji.
     }
 
-    function bindControls(turn, runningOut) {
+    function bindControls(turn, runningOut, tutorial) {
       find('#table-profile')?.addEventListener('click', openProfile);
       if (runningOut) {
         find('.felt').addEventListener('click', event => {
@@ -323,7 +325,8 @@ const pokerView = (() => {
           outlineResize?.observe(nextButton);
         }
         nextButton.addEventListener('click', () => {
-          if (game.getState().phase === 'finished') nextHand();
+          const { phase } = game.getState();
+          if (phase === 'finished' || (phase === 'gameover' && tutorial?.practice)) nextHand();
         });
       }
       find('#tutorial-replay')?.addEventListener('click', replay);
@@ -430,8 +433,8 @@ const pokerView = (() => {
           amount: find('#raiseTo')?.value, call: find('#call')?.textContent, raise: find('#raise')?.textContent,
           slider: find('#raiseSlider'), blindSlider: find('#raiseSliderSecondary')
         } : null;
-      const previousNextHand = !tutorial && !restored && sameSession && previousPhase === 'finished'
-        && state.phase === 'betting' && !reducedMotion.matches ? find('#nextHand') : null;
+      const previousNextHand = !restored && sameSession && previousPhase === 'finished' && state.phase === 'betting'
+        && !reducedMotion.matches ? find('#nextHand:has(.next-hand-progress)') : null;
       const departingNextHand = previousNextHand?.cloneNode(true);
       if (departingNextHand) {
         const progress = getComputedStyle(previousNextHand.querySelector('.next-hand-progress')).strokeDashoffset;
@@ -470,9 +473,9 @@ const pokerView = (() => {
    ${showHand ? handStatusHTML(player.hand, state.board) : ''}
  </div>
  ${tutorial ? `<section class="tutorial-coach" aria-label="Samouczek">
-     <div><h2>${escapeHTML(tutorial.title)}</h2><span>Rozdanie ${tutorial.number} z ${tutorial.total}</span></div>
+     <div><h2>${escapeHTML(tutorial.title)}</h2><span>Rozdanie ${tutorial.number}${tutorial.total ? ` z ${tutorial.total}` : ''}</span></div>
      <p>${escapeHTML(tutorial.prompt)}</p>
-     ${finished ? '<button id="tutorial-replay" class="zone-art-button" type="button">Powtórz rozdanie</button>' : ''}
+     ${finished && !tutorial.practice ? '<button id="tutorial-replay" class="zone-art-button" type="button">Powtórz rozdanie</button>' : ''}
    </section>` : ''}
  <div class="table-footer">
    <div class="controls zone-surface">${controlsHTML(state, pot, game.minRaiseTo(), outgoing, Boolean(departingNextHand), tutorial)}</div>
@@ -501,7 +504,7 @@ const pokerView = (() => {
         departingNextHand.addEventListener('animationcancel', () => departingNextHand.remove(), { once: true });
         find('.action-grid').append(departingNextHand);
       }
-      bindControls(turn, runningOut);
+      bindControls(turn, runningOut, tutorial);
       find('.log').scrollTop = logScroll;
       if (focusedControl) find(focusedControl)?.focus({ preventScroll: true });
     };

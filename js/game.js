@@ -781,7 +781,7 @@ const pokerGame = (() => {
     function continueTurn() {
       if (paused || !state || state.dealing) return;
       if (state.phase === 'finished' && state.timer === null) {
-        if (rules.manualNextHand) return;
+        if (rules.manualNextHand?.()) return;
         const finishedState = state;
         const token = state.epoch;
         state.timer = setTimeout(() => {

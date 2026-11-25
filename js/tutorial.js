@@ -1,6 +1,6 @@
 'use strict';
 
-function createPokerTutorial(onChange, onAction, finish) {
+function createPokerTutorial(onChange, onAction) {
   const ranks = { A: 14, K: 13, Q: 12, J: 11 };
   const cards = list => list.split(' ').map(code => {
     const rank = code.slice(0, -1);
@@ -94,7 +94,9 @@ function createPokerTutorial(onChange, onAction, finish) {
   ];
 
   let index = 0;
+  let practiceOffset = null;
   const current = () => lessons[index];
+  const inPractice = () => practiceOffset !== null;
 
   function dealLesson() {
     const { dealer, hero, bot, board } = current();
@@ -110,6 +112,22 @@ function createPokerTutorial(onChange, onAction, finish) {
 
   const game = pokerGame.createGame((state, options) => {
     if (!state) return;
+    if (inPractice()) {
+      const outOfChips = state.phase === 'gameover';
+      onChange(state, {
+        ...options,
+        tutorial: {
+          practice: true,
+          number: practiceOffset + state.handNo,
+          title: 'Gra samodzielna',
+          prompt: outOfChips
+            ? 'Skończyły się żetony treningowe. Możesz je odnowić i grać dalej.'
+            : 'Rozgrywasz losowe rozdania za żetony treningowe.',
+          nextLabel: 'Odnów żetony'
+        }
+      });
+      return;
+    }
     const lesson = current();
     const guidance = lesson.guide(state);
     const last = index === lessons.length - 1;
@@ -124,25 +142,32 @@ function createPokerTutorial(onChange, onAction, finish) {
       }
     });
   }, undefined, onAction, {
-    dealer: () => current().dealer,
-    deck: dealLesson,
-    botAction: state => current().action(state),
-    manualNextHand: true
+    dealer: () => inPractice() ? undefined : current().dealer,
+    deck: () => inPractice() ? undefined : dealLesson(),
+    botAction: state => inPractice() ? undefined : current().action(state),
+    manualNextHand: () => !inPractice()
   });
 
   const replay = () => game.newGame({ playerCount: 2 });
 
   function start(profile) {
     index = 0;
+    practiceOffset = null;
     game.setHeroProfile(profile);
     replay();
   }
 
   function next() {
-    if (index === lessons.length - 1) finish();
-    else {
+    const state = game.getState();
+    if (inPractice() && state.phase === 'gameover') {
+      practiceOffset += state.handNo;
+      replay();
+    } else if (!inPractice() && index < lessons.length - 1) {
       index++;
       replay();
+    } else {
+      if (!inPractice()) practiceOffset = lessons.length - state.handNo;
+      game.startHand();
     }
   }
 
