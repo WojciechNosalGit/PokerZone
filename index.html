@@ -53,6 +53,7 @@
     <header class="zone-dialog-heading setup-heading">
       <h2 class="zone-visually-hidden" id="setup-title">Nowa gra</h2>
       <span class="zone-brand setup-brand" aria-hidden="true"></span>
+      <button class="reset game-menu-button setup-profile" type="button" id="setup-profile" aria-haspopup="dialog" aria-controls="player-profile" aria-label="Wyświetl profil">Ty</button>
       <button class="reset sound-toggle" type="button" id="setup-sound" aria-label="Dźwięk" aria-pressed="true">
         <span class="sound-icon" aria-hidden="true"><span class="sound-wave"></span></span>
       </button>
@@ -60,19 +61,10 @@
     </header>
     <form id="setup-form">
       <div class="setup-account">
-        <div>
-          <label class="setup-account-label" for="setup-bankroll">Twój bankroll</label>
-          <output class="bankroll-display setup-bankroll" id="setup-bankroll" tabindex="0" data-tooltip="Kwota do wykorzystania w trakcie gry.">
-            <span class="bankroll-icon" aria-hidden="true"></span><span data-bankroll-amount>—</span>
-          </output>
-        </div>
-        <div class="setup-account-profile">
-          <span class="setup-account-label">Profil</span>
-          <button class="header-profile setup-profile" type="button" id="setup-profile" aria-haspopup="dialog" aria-controls="player-profile" aria-label="Wyświetl profil">
-            <span class="seat-avatar" aria-hidden="true"></span>
-            <span class="header-profile-name">Ty</span>
-          </button>
-        </div>
+        <label class="setup-account-label" for="setup-bankroll">Twój bankroll</label>
+        <output class="bankroll-display setup-bankroll" id="setup-bankroll" tabindex="0" data-tooltip="Kwota do wykorzystania w trakcie gry.">
+          <span class="bankroll-icon" aria-hidden="true"></span><span data-bankroll-amount>—</span>
+        </output>
       </div>
       <div class="setup-fields">
         <fieldset class="setup-stakes">
