@@ -284,6 +284,78 @@ body {
   background: #030a125c;
 }
 
+dialog.zone-surface::before {
+  z-index: -3;
+}
+
+dialog.zone-surface::after {
+  z-index: -2;
+}
+
+:is(.profile-dialog, .loss-dialog) {
+  isolation: isolate;
+}
+
+.dialog-motifs {
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  overflow: clip;
+  container: dialog-motifs / size;
+  border-radius: inherit;
+  clip-path: var(--zone-outline, none);
+  pointer-events: none;
+}
+
+.dialog-motifs::before,
+.dialog-motifs::after {
+  position: absolute;
+  color: transparent;
+  font-family: "Segoe UI Symbol", system-ui, sans-serif;
+  font-variant-emoji: text;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.dialog-motifs::before {
+  --motif-x: -22px;
+  --motif-y: -15px;
+  content: "♠";
+  inset-inline-end: -0.16em;
+  inset-block-end: -0.19em;
+  font-size: clamp(124px, min(68cqi, 140cqb), 340px);
+  rotate: -16deg;
+  -webkit-text-stroke: 1px #6ed3e95e;
+}
+
+@container dialog-motifs (min-width: 340px) and (min-height: 420px) {
+  .dialog-motifs::after {
+    --motif-x: 16px;
+    --motif-y: 19px;
+    content: "♦";
+    inset-inline-start: -0.26em;
+    inset-block-start: 18%;
+    font-size: clamp(145px, 49cqi, 280px);
+    rotate: 17deg;
+    -webkit-text-stroke: 1px #b998ed54;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dialog-motifs::before {
+    animation: dialog-motif-drift 16s ease-in-out infinite alternate;
+  }
+
+  .dialog-motifs::after {
+    animation: dialog-motif-drift 21s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes dialog-motif-drift {
+  from { opacity: 0.44; }
+  to { opacity: 0.8; translate: var(--motif-x) var(--motif-y); }
+}
+
 .zone-dialog-heading {
   display: flex;
   align-items: center;
