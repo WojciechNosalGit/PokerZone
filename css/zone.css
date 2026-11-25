@@ -369,13 +369,6 @@ body {
   margin-inline-end: auto;
 }
 
-.setup-heading .setup-profile {
-  flex: none;
-  max-inline-size: min(30%, 150px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .setup-heading .zone-close {
   flex: none;
   margin-inline-start: 0;
@@ -387,23 +380,30 @@ body {
 }
 
 .setup-account {
-  inline-size: min(6.5rem, 47%);
+  align-items: end;
   margin-block-end: 12px;
 }
 
 .setup-account-label {
   display: block;
   margin-block-end: 5px;
+  font-size: clamp(11px, 3.6vw, 15px);
   font-weight: 650;
 }
 
-.setup-bankroll {
+.setup-bankroll,
+.setup-profile,
+.stake-choice {
   inline-size: 100%;
-  block-size: 34px;
+  min-block-size: 40px;
+}
+
+.setup-bankroll {
   padding: 3px 7px;
   gap: 6px;
 }
 
+.setup-profile,
 .setup-bankroll [data-bankroll-amount] {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -431,23 +431,15 @@ body {
   font-weight: 650;
 }
 
+.setup-account,
 .setup-help-actions,
 .stake-options {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
 }
 
-.setup-help-actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.stake-options {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .stake-choice {
-  inline-size: 100%;
-  min-block-size: 40px;
   padding: 4px;
   border: 1px solid #355665;
   border-radius: 6px;
