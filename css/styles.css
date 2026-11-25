@@ -1216,6 +1216,7 @@ button:disabled {
 .felt {
   --chip-width: 19px;
   --chip-step: 3px;
+  --corner-inset: clamp(12px, 1.65cqi, 20px);
   position: relative;
   isolation: isolate;
   container-type: inline-size;
@@ -1227,7 +1228,6 @@ button:disabled {
 }
 
 .table-corner {
-  --corner-inset: clamp(12px, 1.65cqi, 20px);
   position: absolute;
   z-index: 1;
   max-inline-size: calc(50% - var(--corner-inset) - 5px);

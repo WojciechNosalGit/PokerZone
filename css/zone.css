@@ -627,12 +627,77 @@ body {
     position: relative;
   }
 
-  .tutorial-coach {
+  .table-panel > .tutorial-coach {
     position: absolute;
     z-index: 5;
     inset-block-start: 32%;
     inset-inline-start: clamp(18px, 4vw, 52px);
     width: min(23%, 225px);
+  }
+}
+
+.tutorial-spotlight {
+  outline: 2px solid var(--zone-gold);
+  outline-offset: 4px;
+  border-radius: 5px;
+}
+
+.tutorial-overview {
+  --overview-offset: calc(var(--corner-inset) + var(--spotlight-height, 36px) + 13px);
+  position: absolute;
+  z-index: 5;
+  inline-size: min(253px, calc(100% - 2 * var(--corner-inset)));
+  border-color: #ad8348;
+}
+
+.tutorial-overview::before {
+  content: "";
+  position: absolute;
+  inline-size: 9px;
+  block-size: 9px;
+  border: inherit;
+  border-inline-end: 0;
+  border-block-end: 0;
+  background: inherit;
+}
+
+.tutorial-overview:is([data-target="table-status"], [data-target="table-round"]) {
+  inset-inline-start: var(--corner-inset);
+}
+
+.tutorial-overview:is([data-target="table-status"], [data-target="table-round"])::before {
+  inset-inline-start: 14px;
+}
+
+.tutorial-overview:is([data-target="table-players"], [data-target="hand-status"]) {
+  inset-inline-end: var(--corner-inset);
+}
+
+.tutorial-overview:is([data-target="table-players"], [data-target="hand-status"])::before {
+  inset-inline-end: 14px;
+}
+
+.tutorial-overview:is([data-target="table-round"], [data-target="table-players"]) {
+  inset-block-start: var(--overview-offset);
+}
+
+.tutorial-overview:is([data-target="table-round"], [data-target="table-players"])::before {
+  inset-block-start: -5px;
+  rotate: 45deg;
+}
+
+.tutorial-overview:is([data-target="table-status"], [data-target="hand-status"]) {
+  inset-block-end: var(--overview-offset);
+}
+
+.tutorial-overview:is([data-target="table-status"], [data-target="hand-status"])::before {
+  inset-block-end: -5px;
+  rotate: 225deg;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tutorial-overview {
+    animation: content-enter 145ms ease-out;
   }
 }
 

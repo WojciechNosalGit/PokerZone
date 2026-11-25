@@ -291,11 +291,16 @@ const pokerView = (() => {
     return `<span class="table-corner hand-status">Układ <strong>${name}</strong></span>`;
   }
 
-  function createView(root, game, openProfile, { nextHand = game.startHand, replay } = {}) {
+  function createView(root, game, openProfile, { nextHand = game.startHand, replay, advanceOverview } = {}) {
     const find = selector => root.querySelector(selector);
     const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
     const outlineResize = typeof ResizeObserver === 'function'
       ? new ResizeObserver(entries => entries.forEach(({ target }) => layoutNextHandOutline(target))) : null;
+    function positionOverview(spotlight, bubble = find('.tutorial-overview')) {
+      bubble?.style.setProperty('--spotlight-height', `${spotlight.offsetHeight}px`);
+    }
+    const overviewResize = advanceOverview && typeof ResizeObserver === 'function'
+      ? new ResizeObserver(([{ target }]) => positionOverview(target)) : null;
     let showAnalysis = false;
     let previousSessionId;
     let previousPhase;
@@ -335,6 +340,7 @@ const pokerView = (() => {
         });
       }
       find('#tutorial-replay')?.addEventListener('click', replay);
+      find('#tutorial-overview-next')?.addEventListener('click', advanceOverview);
       if (turn) find('#call').addEventListener('click', () => game.act(0, { type: 'call' }));
       const fold = find('#fold');
       fold.addEventListener('click', () => fold.setAttribute('aria-pressed', String(game.requestFold())));
@@ -413,6 +419,7 @@ const pokerView = (() => {
     }
 
     return function render(state, { restored = false, tutorial, online } = {}) {
+      overviewResize?.disconnect();
       if (!state || state.phase === 'left') {
         outlineResize?.disconnect();
         previousSessionId = undefined;
@@ -422,7 +429,7 @@ const pokerView = (() => {
       }
       const sameSession = previousSessionId === state.sessionId;
       const logScroll = sameSession ? find('.log')?.scrollTop ?? 0 : 0;
-      const focusedControl = ['#showAnalysis', '#table-profile', '#write-chat', '#skip-runout', '#fold'].find(selector => {
+      const focusedControl = ['#showAnalysis', '#table-profile', '#write-chat', '#skip-runout', '#fold', '#tutorial-overview-next'].find(selector => {
         const control = find(selector);
         return control && control === document.activeElement;
       });
@@ -455,6 +462,8 @@ const pokerView = (() => {
       const stats = state.stats;
       const winRate = game.bigBlindsPer100();
       const handNumber = tutorial?.number ?? state.handNo;
+      const overview = tutorial?.overview;
+      const finishingOverview = tutorial && !overview && find('.tutorial-overview');
       const percent = count => stats.hands ? Math.round(count / stats.hands * 100) + '%' : '—';
       outlineResize?.disconnect();
       root.innerHTML = `<div class="layout"><div class="table-panel">
@@ -476,8 +485,13 @@ const pokerView = (() => {
    ${state.players.map(seat => tableSeatHTML(seat, state, !tutorial && !online)).join('')}
    <div class="table-corner table-status" role="status">${statusHTML(state, player, online)}</div>
    ${showHand ? handStatusHTML(player.hand, state.board) : ''}
+   ${overview ? `<section class="tutorial-coach tutorial-overview" data-target="${overview.target}" aria-label="Oznaczenia stołu">
+     <div><h2>${escapeHTML(overview.title)}</h2><span>Krok ${overview.step} z ${overview.total}</span></div>
+     <p>${escapeHTML(overview.prompt)}</p>
+     <button class="zone-art-button" id="tutorial-overview-next" type="button">${overview.step === overview.total ? 'Zagraj rozdanie' : 'Dalej'}</button>
+   </section>` : ''}
  </div>
- ${tutorial ? `<section class="tutorial-coach" aria-label="Samouczek">
+ ${tutorial && !overview ? `<section class="tutorial-coach" aria-label="Samouczek">
      <div><h2>${escapeHTML(tutorial.title)}</h2><span>Rozdanie ${tutorial.number}${tutorial.total ? ` z ${tutorial.total}` : ''}</span></div>
      <p>${escapeHTML(tutorial.prompt)}</p>
      ${finished && !tutorial.practice ? '<button id="tutorial-replay" class="zone-art-button" type="button">Powtórz rozdanie</button>' : ''}
@@ -499,6 +513,16 @@ const pokerView = (() => {
  ${online ? '' : '<p class="hint log-analysis">Equity to szacowany udział w puli. Pot odds to koszt sprawdzenia w stosunku do puli po sprawdzeniu.</p>'}
  </section></aside></div>`;
       pokerAvatars.setAvatar(find('.hero-seat .seat-avatar'), player.avatar);
+      if (overview) {
+        const spotlight = find(`.${overview.target}`);
+        const bubble = find('.tutorial-overview');
+        spotlight.classList.add('tutorial-spotlight');
+        positionOverview(spotlight, bubble);
+        overviewResize?.observe(spotlight);
+        const scroll = { block: 'nearest', inline: 'nearest' };
+        spotlight.scrollIntoView(scroll);
+        bubble.scrollIntoView(scroll);
+      }
       if (tutorial?.best) {
         const board = root.querySelectorAll('.board .card');
         tutorial.best.forEach(index => board[index].classList.add('tutorial-best-card'));
@@ -511,7 +535,8 @@ const pokerView = (() => {
       }
       bindControls(turn, runningOut, tutorial, online);
       find('.log').scrollTop = logScroll;
-      if (focusedControl) find(focusedControl)?.focus({ preventScroll: true });
+      if (finishingOverview) find('#call').focus();
+      else if (focusedControl) find(focusedControl)?.focus({ preventScroll: true });
     };
   }
 

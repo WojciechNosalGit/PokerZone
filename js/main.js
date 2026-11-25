@@ -69,7 +69,9 @@
       chat.speak(state.players[1], speech);
     }
   }, effects.onAction);
-  const renderTutorial = pokerView.createView(root, tutorial.game, undefined, { nextHand: tutorial.next, replay: tutorial.replay });
+  const renderTutorial = pokerView.createView(root, tutorial.game, undefined, {
+    nextHand: tutorial.next, replay: tutorial.replay, advanceOverview: tutorial.advanceOverview
+  });
 
   const online = createPokerOnline(document.querySelector('#online-dialog'), {
     enter() {
@@ -160,6 +162,7 @@
     if (!training) return;
     training = false;
     tutorial.game.resetGame();
+    renderTutorial(null);
     document.body.classList.remove('tutorial-active');
     endTutorialButton.hidden = true;
     menuButton.hidden = false;

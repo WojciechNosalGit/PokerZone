@@ -6,6 +6,25 @@ function createPokerTutorial(onChange, onAction) {
     const rank = code.slice(0, -1);
     return { r: ranks[rank] ?? Number(rank), s: code.at(-1) };
   });
+  const overviewSteps = [
+    {
+      target: 'table-status',
+      title: 'Twoja kolej',
+      prompt: 'Gdy zobaczysz „Twoja kolej”, wybierz zagranie. „Do sprawdzenia” pokazuje, ile żetonów trzeba dołożyć, żeby wyrównać zakład.'
+    }, {
+      target: 'table-round',
+      title: 'Rozdanie i stawka',
+      prompt: 'Liczba na kartach to numer rozdania. NL 2/4 oznacza grę No Limit z blindami 2 i 4. Blindy to obowiązkowe wpłaty przed rozdaniem kart.'
+    }, {
+      target: 'table-players',
+      title: 'Gracze przy stole',
+      prompt: 'Liczba obok ikonki pokazuje, ilu graczy jest przy stole, razem z Tobą. W samouczku gracie we dwoje.'
+    }, {
+      target: 'hand-status',
+      title: 'Twój układ',
+      prompt: 'Tu zobaczysz swój najlepszy układ z dostępnych kart. Na razie masz króla i damę, więc Twój układ to wysoka karta, król.'
+    }
+  ];
   const lessons = [
     {
       title: 'Od blindów do showdownu',
@@ -93,6 +112,7 @@ function createPokerTutorial(onChange, onAction) {
     }
   ];
 
+  let overviewIndex = null;
   let index = 0;
   let practiceOffset = null;
   const current = () => lessons[index];
@@ -110,7 +130,7 @@ function createPokerTutorial(onChange, onAction) {
     return [...remaining, ...draw.reverse()];
   }
 
-  const game = pokerGame.createGame((state, options) => {
+  function publish(state, options) {
     if (!state) return;
     if (inPractice()) {
       const outOfChips = state.phase === 'gameover';
@@ -129,7 +149,10 @@ function createPokerTutorial(onChange, onAction) {
       return;
     }
     const lesson = current();
-    const guidance = lesson.guide(state);
+    const overview = overviewIndex === null || state.dealing ? null : overviewSteps[overviewIndex];
+    const guidance = overview
+      ? { overview: { ...overview, step: overviewIndex + 1, total: overviewSteps.length } }
+      : lesson.guide(state);
     const last = index === lessons.length - 1;
     onChange(state, {
       ...options,
@@ -141,7 +164,9 @@ function createPokerTutorial(onChange, onAction) {
         nextLabel: last ? 'Zagraj samodzielnie' : 'Następne rozdanie'
       }
     });
-  }, undefined, onAction, {
+  }
+
+  const game = pokerGame.createGame(publish, undefined, onAction, {
     dealer: () => inPractice() ? undefined : current().dealer,
     deck: () => inPractice() ? undefined : dealLesson(),
     botAction: state => inPractice() ? undefined : current().action(state),
@@ -151,10 +176,18 @@ function createPokerTutorial(onChange, onAction) {
   const replay = () => game.newGame({ playerCount: 2 });
 
   function start(profile) {
+    overviewIndex = 0;
     index = 0;
     practiceOffset = null;
     game.setHeroProfile(profile);
     replay();
+  }
+
+  function advanceOverview() {
+    if (overviewIndex === null) return;
+    overviewIndex++;
+    if (overviewIndex === overviewSteps.length) overviewIndex = null;
+    publish(game.getState(), { restored: true });
   }
 
   function next() {
@@ -171,5 +204,5 @@ function createPokerTutorial(onChange, onAction) {
     }
   }
 
-  return { game, start, replay, next };
+  return { game, start, replay, next, advanceOverview };
 }
