@@ -9,15 +9,12 @@ function pokerProfileNickname({ name, nameSelected }) {
 function createPokerProfile(dialog, onSave) {
   const storageKey = 'poker-lab-player-profile';
   const profileWithNickname = (nickname, avatar) => ({ name: nickname || 'Ty', nameSelected: Boolean(nickname), avatar });
-  const { groups, isPreset, isUpload, setPreset, setAvatar } = pokerAvatars;
+  const { groups, defaultAvatar, isPreset, isUpload, setPreset, setAvatar } = pokerAvatars;
   const genderLabels = { male: 'męski', female: 'żeński', neutral: 'neutralny' };
   const form = dialog.querySelector('#profile-form');
   const name = dialog.querySelector('#profile-name');
-  const file = dialog.querySelector('#profile-avatar');
   const preview = dialog.querySelector('#profile-avatar-preview');
-  const defaultAvatar = dialog.querySelector('#default-avatar');
   const gallery = dialog.querySelector('#profile-avatar-gallery');
-  const save = dialog.querySelector('#save-profile');
   const status = dialog.querySelector('#profile-status');
   let profile = profileWithNickname('', '');
   try {
@@ -31,7 +28,7 @@ function createPokerProfile(dialog, onSave) {
   }
 
   let draftAvatar = '';
-  let upload = 0;
+  const activeAvatar = () => draftAvatar || defaultAvatar;
 
   const rows = groups.map(({ id, label, presets }) => {
     const category = document.createElement('fieldset');
@@ -44,11 +41,11 @@ function createPokerProfile(dialog, onSave) {
     options.className = 'profile-avatar-options';
     options.id = `profile-avatars-${id}`;
 
-    const choices = presets.map(({ id: avatar, gender }, index) => {
+    const choices = presets.map(({ id: avatar, label: color, gender }, index) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'profile-avatar-option';
-      const description = `${label}, avatar ${index + 1} (${genderLabels[gender]})`;
+      const description = color ? `${label}, ${color.toLowerCase()}` : `${label}, avatar ${index + 1} (${genderLabels[gender]})`;
       button.dataset.tooltip = description;
       button.setAttribute('aria-label', description);
       setPreset(button, avatar);
@@ -98,83 +95,34 @@ function createPokerProfile(dialog, onSave) {
   }
 
   function updatePreview() {
-    setAvatar(preview, draftAvatar);
-    defaultAvatar.disabled = !draftAvatar;
-    for (const button of choices) button.setAttribute('aria-pressed', String(button.dataset.avatarPreset === draftAvatar));
+    const selected = activeAvatar();
+    setAvatar(preview, selected);
+    for (const button of choices) button.setAttribute('aria-pressed', String(button.dataset.avatarPreset === selected));
   }
 
   function selectAvatar(avatar) {
-    upload++;
-    file.value = '';
     draftAvatar = avatar;
-    save.disabled = false;
     showStatus();
     updatePreview();
   }
 
   function open(player) {
     if (dialog.open) return;
-    upload++;
     name.value = pokerProfileNickname(player ?? profile);
-    file.value = '';
     draftAvatar = player ? (player.avatarSelected ? player.avatar : '') : profile.avatar;
-    save.disabled = false;
     showStatus();
     updatePreview();
     dialog.showModal();
     form.scrollTop = 0;
     for (const { options, choices, updateArrows } of rows) {
-      const selected = choices.find(button => button.dataset.avatarPreset === draftAvatar);
+      const selected = choices.find(button => button.dataset.avatarPreset === activeAvatar());
       if (selected) options.scrollTo({ left: selected.offsetLeft - choices[0].offsetLeft, behavior: 'instant' });
       updateArrows();
     }
   }
 
-  async function avatarThumbnail(selectedFile) {
-    const url = URL.createObjectURL(selectedFile);
-    try {
-      const image = new Image();
-      image.src = url;
-      await image.decode();
-      const { naturalWidth: width, naturalHeight: height } = image;
-      const side = Math.min(width, height);
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 160;
-      canvas.getContext('2d').drawImage(image, (width - side) / 2, (height - side) / 2, side, side, 0, 0, 160, 160);
-      const avatar = canvas.toDataURL('image/webp', 0.86);
-      if (!isUpload(avatar)) throw new Error('Nieobsługiwany obraz.');
-      return avatar;
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-
-  file.addEventListener('change', async () => {
-    const selectedFile = file.files[0];
-    if (!selectedFile) return;
-    const request = ++upload;
-    save.disabled = true;
-    showStatus();
-    try {
-      const avatar = await avatarThumbnail(selectedFile);
-      if (request !== upload || !dialog.open) return;
-      draftAvatar = avatar;
-      updatePreview();
-    } catch {
-      if (request === upload && dialog.open) showStatus('Nie udało się wczytać obrazu.');
-    } finally {
-      if (request === upload) {
-        file.value = '';
-        save.disabled = false;
-      }
-    }
-  });
-
-  defaultAvatar.addEventListener('click', () => selectAvatar(''));
-
   form.addEventListener('submit', event => {
     event.preventDefault();
-    if (save.disabled) return;
     const updated = profileWithNickname(pokerProfileNickname({ name: name.value, nameSelected: true }), draftAvatar);
     try {
       localStorage.setItem(storageKey, JSON.stringify(updated));

@@ -52,8 +52,8 @@
   </main>
   <dialog class="setup-dialog zone-dialog zone-surface" id="game-setup" aria-labelledby="setup-title" closedby="none">
     <span class="dialog-motifs" aria-hidden="true"></span>
-    <div class="setup-portrait-frame" aria-hidden="true">
-      <span class="seat-avatar setup-portrait" id="setup-portrait"></span>
+    <div class="avatar-portrait-frame" aria-hidden="true">
+      <span class="seat-avatar avatar-portrait" id="setup-portrait"></span>
     </div>
     <header class="zone-dialog-heading setup-heading">
       <h2 class="zone-visually-hidden" id="setup-title">Nowa gra</h2>
@@ -211,17 +211,13 @@
       <p class="menu-status" id="profile-status" role="status" hidden></p>
     </header>
     <form id="profile-form" class="profile-form">
+      <div class="avatar-portrait-frame">
+        <span class="seat-avatar avatar-portrait" id="profile-avatar-preview" role="img" aria-label="Podgląd awatara"></span>
+      </div>
       <label for="profile-name">Nazwa gracza</label>
       <input id="profile-name" type="text" maxlength="24" placeholder="Podaj nick" autofocus>
-      <div class="profile-avatar-picker">
-        <span class="seat-avatar profile-avatar-preview" id="profile-avatar-preview" role="img" aria-label="Podgląd awatara"></span>
-        <div class="profile-avatar-fields">
-          <label for="profile-avatar">Avatar</label>
-          <input id="profile-avatar" type="file" accept="image/*">
-          <button class="reset" id="default-avatar" type="button">Domyślny awatar</button>
-        </div>
-      </div>
-      <div id="profile-avatar-gallery"></div>
+      <h3 class="profile-avatar-heading" id="profile-avatar-heading">Wybierz avatar</h3>
+      <div id="profile-avatar-gallery" role="group" aria-labelledby="profile-avatar-heading"></div>
     </form>
   </dialog>
   <dialog class="setup-dialog zone-dialog zone-surface" id="table-chat-dialog" aria-labelledby="table-chat-title">

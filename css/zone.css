@@ -438,7 +438,7 @@ dialog.zone-surface::after {
   padding: clamp(14px, 4vw, 23px);
 }
 
-.setup-portrait-frame {
+.avatar-portrait-frame {
   position: absolute;
   inset: 1px 1px auto auto;
   width: min(58%, 260px);
@@ -447,7 +447,7 @@ dialog.zone-surface::after {
   pointer-events: none;
 }
 
-.setup-portrait {
+.avatar-portrait {
   --portrait-overhang: 6px;
   inset: 0 calc(-1 * var(--portrait-overhang)) auto auto;
   width: 100%;
@@ -465,7 +465,11 @@ dialog.zone-surface::after {
   pointer-events: none;
 }
 
-.setup-portrait:not([data-avatar-preset], .custom-avatar) {
+.avatar-portrait[data-avatar-preset^="default-"] {
+  opacity: 0.52;
+}
+
+.avatar-portrait:is(:not([data-avatar-preset], .custom-avatar), [data-avatar-preset="default-neutral"]) {
   opacity: 0.22;
 }
 
@@ -1450,9 +1454,27 @@ dialog.zone-surface::after {
 }
 
 .profile-dialog .profile-form {
+  position: relative;
+  isolation: isolate;
   min-block-size: 0;
   padding: 14px 16px 16px;
   overflow: auto;
+}
+
+.profile-form .avatar-portrait-frame {
+  z-index: -1;
+}
+
+.profile-form input[type="text"] {
+  inline-size: calc(100% / 3);
+  padding-inline: 7px;
+  font-size: clamp(13px, 3.5vw, 15px);
+}
+
+.profile-avatar-heading {
+  margin: 16px 0 0;
+  color: #e7f5fa;
+  font-size: 1rem;
 }
 
 @media (min-width: 761px) {

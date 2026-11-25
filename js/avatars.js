@@ -37,8 +37,15 @@ const pokerAvatars = (() => {
     label,
     presets: genders.map((gender, index) => ({ id: `${groupId}-${index + 1}`, gender }))
   }));
-  const presets = groups.flatMap(group => group.presets);
-  const presetIds = new Set(presets.map(({ id }) => id));
+  const botPresets = groups.flatMap(group => group.presets);
+  const botPresetIds = new Set(botPresets.map(({ id }) => id));
+  const silhouettes = [
+    ['neutral', 'Neutralny'], ['teal', 'Turkusowy'], ['blue', 'Niebieski'],
+    ['green', 'Zielony'], ['gold', 'Złoty'], ['pink', 'Różowy'], ['purple', 'Fioletowy']
+  ].map(([color, label]) => ({ id: `default-${color}`, label }));
+  const defaultAvatar = silhouettes[0].id;
+  groups.unshift({ id: 'default', label: 'Domyślne', presets: silhouettes });
+  const presetIds = new Set([...botPresetIds, ...silhouettes.map(({ id }) => id)]);
   const isPreset = value => presetIds.has(value);
   const isUpload = value => typeof value === 'string' && /^data:image\/(?:png|webp);base64,[a-z0-9+/]+={0,2}$/i.test(value);
 
@@ -56,11 +63,11 @@ const pokerAvatars = (() => {
   }
 
   function fillBotAvatars(players, excluded = []) {
-    const missing = players.slice(1).filter(player => player.kind !== 'human' && !isPreset(player.avatar));
+    const missing = players.slice(1).filter(player => player.kind !== 'human' && !botPresetIds.has(player.avatar));
     if (!missing.length) return;
 
     const used = new Set([...excluded, ...players.map(player => player.avatar)]);
-    const available = pokerCards.shuffled(presets.filter(({ id }) => !used.has(id)));
+    const available = pokerCards.shuffled(botPresets.filter(({ id }) => !used.has(id)));
     for (const bot of missing) {
       const matching = available.findIndex(({ gender }) => gender === bot.avatarGender);
       const [avatar] = available.splice(Math.max(0, matching), 1);
@@ -68,5 +75,5 @@ const pokerAvatars = (() => {
     }
   }
 
-  return { groups, isPreset, isUpload, setPreset, setAvatar, fillBotAvatars };
+  return { groups, defaultAvatar, isPreset, isUpload, setPreset, setAvatar, fillBotAvatars };
 })();
