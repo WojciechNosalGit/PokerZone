@@ -1516,6 +1516,7 @@ dialog.zone-surface::after {
   position: relative;
   z-index: -1;
   inset: auto;
+  translate: 0 14px;
   place-self: start end;
   inline-size: min(var(--profile-portrait-size), var(--avatar-native-size, 346px));
   block-size: auto;
