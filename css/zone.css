@@ -356,6 +356,29 @@ body {
   padding: clamp(14px, 4vw, 23px);
 }
 
+.setup-portrait {
+  inset: 1px 1px auto auto;
+  width: min(58%, 260px);
+  height: auto;
+  aspect-ratio: 1;
+  translate: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  opacity: 0.72;
+  mask-image: radial-gradient(ellipse 75% 80% at 68% 32%, #000 16%, transparent 82%);
+  pointer-events: none;
+}
+
+.setup-portrait:not([data-avatar-preset], .custom-avatar) {
+  opacity: 0.22;
+}
+
+#game-setup > :is(.setup-heading, #setup-form, .setup-actions, .menu-status) {
+  position: relative;
+  z-index: 1;
+}
+
 .setup-heading {
   gap: 8px;
 }
@@ -389,6 +412,10 @@ body {
   justify-self: end;
   min-inline-size: 0;
   max-inline-size: 100%;
+}
+
+.setup-account-profile :is(.setup-account-label, .header-profile-name) {
+  text-shadow: 0 1px 3px #04141d, 0 0 5px #04141d;
 }
 
 .setup-account .setup-profile {

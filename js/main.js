@@ -8,6 +8,7 @@
   const dismissTableTooltip = bindPokerTooltips(document.querySelector('#poker-tooltip'));
   const setupProfile = document.querySelector('#setup-profile');
   const profileAvatar = setupProfile.querySelector('.seat-avatar');
+  const setupPortrait = document.querySelector('#setup-portrait');
   const profileName = setupProfile.querySelector('.header-profile-name');
   const headerBalance = document.querySelector('#header-bankroll [data-bankroll-amount]');
   const leaveTableAction = document.querySelector('#leave-table-action');
@@ -116,6 +117,7 @@
     profileName.textContent = name;
     setupProfile.setAttribute('aria-label', `Wyświetl profil gracza ${name}`);
     pokerAvatars.setAvatar(profileAvatar, avatar);
+    pokerAvatars.setAvatar(setupPortrait, avatar);
   }
 
   function applyProfile(value) {
