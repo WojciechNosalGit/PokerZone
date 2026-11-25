@@ -1,11 +1,11 @@
 'use strict';
 
 function createPokerChat(root, dialog, game) {
-  const botLines = {
-    win: ['Uff, udało się!', 'Tym razem pula dla mnie.', 'Dobre rozdanie!'],
-    loss: ['O, blisko było!', 'Ładnie rozegrane.', 'Tym razem się nie udało.'],
-    even: ['Wychodzę na zero.', 'Po tym rozdaniu jestem na równo.'],
-    fold: ['Tym razem odpuszczam.', 'Spróbuję w następnym.', 'Zobaczymy, co przyniesie następne.']
+  const botReactions = {
+    win: { icons: ['😄', '🥳', '😎', '🃏✨'], label: 'radość po wygranej' },
+    loss: { icons: ['😡', '😤', '😩', '😓'], label: 'frustracja po przegranej' },
+    even: { icons: ['🤝', '😅', '😐'], label: 'wynik na zero' },
+    fold: { icons: ['🤷', '👀', '🙈'], label: 'reakcja po spasowaniu' }
   };
   const form = dialog.querySelector('form');
   const input = dialog.querySelector('textarea');
@@ -47,12 +47,17 @@ function createPokerChat(root, dialog, game) {
     bubble.classList.toggle('seat-chat-below', below);
   }
 
-  function publish(player, text) {
+  function publish(player, text, reactionLabel) {
     clearMessage(player.id);
     const bubble = document.createElement('div');
     bubble.className = 'seat-chat-bubble';
     bubble.dataset.speaker = String(player.id);
     bubble.textContent = text;
+    if (reactionLabel) {
+      bubble.classList.add('seat-chat-reaction');
+      bubble.setAttribute('role', 'img');
+      bubble.setAttribute('aria-label', `${player.name} — ${reactionLabel}`);
+    }
     const message = { bubble, name: player.name, timer: setTimeout(() => clearMessage(player.id), 4700) };
     messages.set(player.id, message);
     positionMessage(player.id, message);
@@ -73,10 +78,10 @@ function createPokerChat(root, dialog, game) {
     const payout = payouts.find(([seat]) => seat === speaker.id)?.[1] ?? 0;
     const net = payout - speaker.contributed;
     const outcome = speaker.folded ? 'fold' : net > 0 ? 'win' : net < 0 ? 'loss' : 'even';
-    const lines = botLines[outcome];
+    const { icons, label } = botReactions[outcome];
     clearMessage(lastSpeaker);
     lastSpeaker = speaker.id;
-    publish(speaker, lines[pokerCards.randomIndex(lines.length)]);
+    publish(speaker, icons[pokerCards.randomIndex(icons.length)], label);
   }
 
   function onChange(state, { restored = false, payouts = [] } = {}) {

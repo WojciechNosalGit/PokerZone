@@ -527,6 +527,11 @@ body {
   rotate: 225deg;
 }
 
+.seat-chat-reaction {
+  font: 22px/1.2 "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+  white-space: nowrap;
+}
+
 #table-chat-dialog {
   width: min(380px, calc(100% - 28px));
 }
