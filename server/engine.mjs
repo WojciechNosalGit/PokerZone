@@ -8,7 +8,7 @@ for (const name of ['cards', 'avatars', 'chips', 'bots', 'game']) {
   runInContext(readFileSync(script, 'utf8'), context, { filename: script.pathname });
 }
 
-export const { createGame, stakes, buyInFor } = runInContext('pokerGame', context);
+export const { createGame, stakes, buyInFor, minPlayers, maxPlayers } = runInContext('pokerGame', context);
 const { fullDeck } = runInContext('pokerCards', context);
 
 export function shuffleForOnline() {

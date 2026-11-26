@@ -2,28 +2,48 @@
 
 function createPokerOnline(dialog, { enter, update, leave }) {
   const find = selector => dialog.querySelector(selector);
+  const options = find('#online-options');
+  const title = find('#online-title');
+  const createFields = find('#online-create-fields');
+  const joinFields = find('#online-join-fields');
   const form = find('#online-form');
+  const submit = find('#online-submit');
+  const back = find('#online-back');
   const notice = find('#online-dialog-status');
   const invite = find('#online-invitation');
-  const link = find('#online-link');
-  const serverField = find('#online-server');
-  const serverDetails = find('#online-server-details');
+  const code = find('#online-code');
+  const waiting = find('#online-waiting');
   const roomField = find('#online-room');
   const name = find('#online-name');
-  const stakesField = find('#online-stakes');
+  const playersField = find('#online-players');
+  const fewer = find('#online-players-less');
+  const more = find('#online-players-more');
+  const playersOutput = find('#online-player-count');
+  const { stakes, minPlayers, maxPlayers, defaultPlayers } = pokerGame;
   const roomPattern = /^[A-F0-9]{10}$/;
   const chipValues = new Set([1, 5, 10, 25, 100, 500, 1000]);
   const configuredServer = document.querySelector('meta[name="pokerzone-online-url"]')?.content.trim() ?? '';
-  const defaultServer = configuredServer === '/ws' ? location.origin + configuredServer : configuredServer;
-  const missingServer = 'Podaj adres działającego serwera PokerZone. Na stronie HTTPS użyj https:// lub wss://.';
-  for (const { smallBlind, bigBlind } of pokerGame.stakes) {
-    stakesField.add(new Option(`NL ${smallBlind}/${bigBlind}`, String(bigBlind)));
-  }
+  const endpoint = normalizeServer(configuredServer === '/ws' ? location.origin + configuredServer : configuredServer);
+  const unavailable = 'Gra online jest chwilowo niedostępna.';
+  const connectionFailed = 'Nie udało się połączyć z PokerZone. Spróbuj ponownie za chwilę.';
+  let selectedBlind;
+  let mode;
+
+  const stakeButtons = new Map(stakes.map(({ smallBlind, bigBlind }) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'stake-choice';
+    button.textContent = `NL ${smallBlind}/${bigBlind}`;
+    button.addEventListener('click', () => selectStakes(bigBlind));
+    find('#online-stakes').append(button);
+    return [bigBlind, button];
+  }));
+  playersField.min = minPlayers;
+  playersField.max = maxPlayers;
 
   let socket;
   let connectionTimeout;
   let retryTimer;
-  let endpoint;
   let membership;
   let state;
   let revision;
@@ -36,19 +56,22 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   const validCard = card => card && Number.isInteger(card.r) && card.r >= 2 && card.r <= 14
     && ['♥', '♠', '♦', '♣'].includes(card.s);
 
-  function validSnapshot(snapshot) {
+  const validCount = count => Number.isInteger(count) && count >= minPlayers && count <= maxPlayers;
+  const validSeat = (id, count) => whole(id) && id < count;
+
+  function validSnapshot(snapshot, count) {
     return typeof snapshot.sessionId === 'string' && ['betting', 'finished', 'gameover'].includes(snapshot.phase)
       && ['preflop', 'flop', 'turn', 'river', 'showdown'].includes(snapshot.street)
       && typeof snapshot.dealing === 'boolean' && typeof snapshot.summary === 'string'
       && [snapshot.handNo, snapshot.currentBet, snapshot.lastRaise, snapshot.smallBlind, snapshot.bigBlind].every(whole)
       && snapshot.smallBlind > 0 && snapshot.bigBlind > 0
-      && [-1, 0, 1].includes(snapshot.actor) && [0, 1].includes(snapshot.dealer)
+      && (snapshot.actor === -1 || validSeat(snapshot.actor, count)) && validSeat(snapshot.dealer, count)
       && Array.isArray(snapshot.board) && snapshot.board.length <= 5 && snapshot.board.every(validCard)
       && validChips(snapshot.potChips) && Array.isArray(snapshot.logs) && snapshot.logs.every(entry => entry && typeof entry === 'object')
-      && Array.isArray(snapshot.players) && snapshot.players.length === 2 && snapshot.players.every((player, index) =>
+      && Array.isArray(snapshot.players) && snapshot.players.length === count && snapshot.players.every((player, index) =>
         player?.id === index && typeof player.name === 'string' && [player.stack, player.contributed, player.bet].every(whole)
-        && validChips(player.betChips) && Array.isArray(player.hand) && player.hand.length === 2
-        && player.hand.every(card => (index === 1 && card === null) || validCard(card)));
+        && validChips(player.betChips) && Array.isArray(player.hand) && [0, 2].includes(player.hand.length)
+        && player.hand.every(card => (index !== 0 && card === null) || validCard(card)));
   }
 
   function showNotice(message) {
@@ -57,15 +80,38 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   }
 
   function setConnecting(connecting) {
-    for (const button of form.querySelectorAll('button[type="submit"]')) button.disabled = connecting;
+    submit.disabled = back.disabled = connecting;
   }
 
-  function failConnection(connection, message, { addressError = true } = {}) {
+  function selectStakes(bigBlind) {
+    selectedBlind = bigBlind;
+    for (const [value, button] of stakeButtons) button.setAttribute('aria-pressed', String(bigBlind === value));
+  }
+
+  function updatePlayerCount() {
+    const count = playersField.valueAsNumber;
+    playersOutput.value = count;
+    fewer.disabled = count === minPlayers;
+    more.disabled = count === maxPlayers;
+  }
+
+  function showStep(step) {
+    mode = step;
+    title.textContent = step === 'create' ? 'Utwórz stół' : step === 'join' ? 'Dołącz do stołu' : 'Graj online';
+    options.hidden = Boolean(step);
+    form.hidden = !step;
+    invite.hidden = true;
+    createFields.hidden = step !== 'create';
+    joinFields.hidden = step !== 'join';
+    submit.textContent = step === 'create' ? 'Utwórz stół' : 'Dołącz';
+    showNotice(endpoint ? '' : unavailable);
+  }
+
+  function failConnection(connection, message) {
     clearTimeout(connectionTimeout);
     socket = null;
     connection?.close();
     setConnecting(false);
-    if (addressError) serverDetails.open = true;
     showNotice(message);
   }
 
@@ -96,7 +142,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   function makeLink(room) {
     const url = new URL(location.href);
     url.searchParams.set('table', room);
-    url.searchParams.set('server', endpoint);
+    url.searchParams.delete('server');
     return url;
   }
 
@@ -163,13 +209,15 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   function readMessage(data) {
     const message = JSON.parse(data);
     if (message?.type === 'seat') {
-      if (![0, 1].includes(message.seat) || typeof message.room !== 'string' || !roomPattern.test(message.room)
+      if (!validSeat(message.seat, maxPlayers) || typeof message.room !== 'string' || !roomPattern.test(message.room)
         || typeof message.token !== 'string') throw new Error('Invalid seat');
     } else if (message?.type === 'state' && membership) {
-      if (!whole(message.revision) || typeof message.connected !== 'boolean'
+      const { playerCount, present } = message;
+      if (!whole(message.revision) || !validCount(playerCount) || !whole(present) || present > playerCount
+        || message.connected !== (present === playerCount) || !validSeat(membership.seat, playerCount)
         || !Array.isArray(message.payouts) || !message.payouts.every(payout => Array.isArray(payout)
-          && [0, 1].includes(payout[0]) && whole(payout[1]))
-        || (message.state !== null && (!message.state || !validSnapshot(message.state)))) throw new Error('Invalid state');
+          && validSeat(payout[0], playerCount) && whole(payout[1]))
+        || (message.state !== null && (!message.state || !validSnapshot(message.state, playerCount)))) throw new Error('Invalid state');
     } else if (!(message?.type === 'error' || (message?.type === 'closed' && membership))
       || typeof message.message !== 'string') {
       throw new Error('Unrecognized PokerZone message');
@@ -183,11 +231,13 @@ function createPokerOnline(dialog, { enter, update, leave }) {
       const firstSeat = !membership;
       membership = message;
       storedSeat(message.room, message.token);
-      const url = makeLink(message.room);
-      history.replaceState(null, '', url);
-      link.value = url.href;
+      history.replaceState(null, '', makeLink(message.room));
+      code.value = message.room;
+      title.textContent = 'Poczekalnia';
+      options.hidden = true;
       form.hidden = true;
       invite.hidden = false;
+      showNotice('');
       if (firstSeat) enter();
       return;
     }
@@ -199,25 +249,24 @@ function createPokerOnline(dialog, { enter, update, leave }) {
         if (membership) { stop(message.message, false); return; }
       }
       if (membership) draw(message.message, { restored: true });
-      else {
-        failConnection(socket, message.message, { addressError: false });
-      }
+      else failConnection(socket, message.message);
       return;
     }
     connected = message.connected;
     revision = message.revision;
     awaiting = false;
     state = message.state;
+    const occupancy = `Gracze przy stole: ${message.present}/${message.playerCount}`;
     if (!state) {
-      showNotice(message.opponent ? 'Czekamy na powrót drugiego gracza.' : 'Wyślij link drugiemu graczowi.');
-      draw('Czekasz na drugiego gracza.');
+      waiting.textContent = `${occupancy}. Rozdanie ruszy po zapełnieniu stołu.`;
+      draw(occupancy);
       return;
     }
     if (dialog.open) dialog.close();
     if (queuedFold !== handKey(state) || state.phase !== 'betting') queuedFold = undefined;
     if (queuedFold && !state.dealing && state.actor === 0 && connected) move({ type: 'fold' });
     state.foldPending = Boolean(queuedFold);
-    draw(connected ? `${message.opponent} jest przy stole.` : `Czekasz, aż ${message.opponent} wróci do stołu.`, {
+    draw(connected ? occupancy : `${occupancy}. Czekamy na powrót pozostałych graczy.`, {
       restored: message.restored, skippedRunout: message.skippedRunout, payouts: message.payouts, sound: message.sound
     });
   }
@@ -225,9 +274,8 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   function connect(request) {
     let connection;
     try { connection = new WebSocket(endpoint); } catch {
-      const warning = 'Przeglądarka nie może otworzyć połączenia pod tym adresem.';
-      if (membership) stop(warning, false);
-      else failConnection(null, warning);
+      if (membership) stop(connectionFailed, false);
+      else failConnection(null, connectionFailed);
       return;
     }
     socket = connection;
@@ -240,13 +288,13 @@ function createPokerOnline(dialog, { enter, update, leave }) {
       let message;
       try { message = readMessage(event.data); } catch {
         if (membership) stop('Serwer przesłał nieprawidłowe dane stołu.', false);
-        else failConnection(connection, 'Pod tym adresem nie odpowiada serwer PokerZone. Sprawdź jego adres.');
+        else failConnection(connection, connectionFailed);
         return;
       }
       try { receive(message, request); } catch (error) {
         console.error('PokerZone online failed to update the game view:', error);
         if (membership) stop('Nie udało się wyświetlić stołu w przeglądarce.', false);
-      else failConnection(connection, 'Nie udało się otworzyć stołu w przeglądarce.', { addressError: false });
+        else failConnection(connection, 'Nie udało się otworzyć stołu w przeglądarce.');
       }
     });
     connection.addEventListener('close', event => {
@@ -255,7 +303,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
       socket = null;
       awaiting = connected = false;
       if (!membership) {
-        failConnection(null, 'Nie udało się połączyć z serwerem PokerZone. Sprawdź, czy jest uruchomiony i czy adres jest poprawny.');
+        failConnection(null, connectionFailed);
         return;
       }
       if (event.code === 4001) { stop('Grasz z innej karty przeglądarki.', false); return; }
@@ -270,16 +318,13 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     if (dialog.open || membership) return;
     const parameters = new URLSearchParams(location.search);
     const invitedRoom = fromInvite ? parameters.get('table')?.toUpperCase() : '';
-    const invitedServer = fromInvite ? parameters.get('server') : '';
     if (fromInvite && !roomPattern.test(invitedRoom)) return;
-    form.hidden = false;
-    invite.hidden = true;
     name.value = defaultName;
     roomField.value = invitedRoom || '';
-    serverField.value = invitedServer || serverField.value || defaultServer;
-    endpoint = normalizeServer(serverField.value);
-    serverDetails.open = !endpoint;
-    showNotice(endpoint ? '' : missingServer);
+    playersField.value = defaultPlayers;
+    updatePlayerCount();
+    selectStakes(stakes[0].bigBlind);
+    showStep(invitedRoom ? 'join' : null);
     dialog.showModal();
     const token = endpoint && invitedRoom && storedSeat(invitedRoom);
     if (token) {
@@ -289,32 +334,44 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     }
   }
 
+  find('#online-create').addEventListener('click', () => { showStep('create'); name.focus(); });
+  find('#online-join').addEventListener('click', () => { showStep('join'); roomField.focus(); });
+  back.addEventListener('click', () => {
+    const previous = mode;
+    showStep(null);
+    find(previous === 'create' ? '#online-create' : '#online-join').focus();
+  });
+  playersField.addEventListener('input', updatePlayerCount);
+  fewer.addEventListener('click', () => { playersField.stepDown(); updatePlayerCount(); });
+  more.addEventListener('click', () => { playersField.stepUp(); updatePlayerCount(); });
   form.addEventListener('submit', event => {
     event.preventDefault();
-    if (socket) return;
-    endpoint = normalizeServer(serverField.value.trim());
-    if (!endpoint) {
-      serverDetails.open = true;
-      showNotice(missingServer);
-      serverField.focus();
-      return;
-    }
-    const type = event.submitter?.value ?? (roomField.value ? 'join' : 'create');
+    if (socket || !mode) return;
+    if (!endpoint) { showNotice(unavailable); return; }
     const room = roomField.value.trim().toUpperCase();
-    if (type === 'join' && !roomPattern.test(room)) { showNotice('Wpisz 10-znakowy kod z zaproszenia albo otwórz link zaproszenia.'); roomField.focus(); return; }
+    if (mode === 'join' && !roomPattern.test(room)) { showNotice('Wpisz 10-znakowy kod z zaproszenia albo otwórz link zaproszenia.'); roomField.focus(); return; }
     setConnecting(true);
-    showNotice('Łączymy się z serwerem…');
-    connect({ type, name: name.value.trim(), room, bigBlind: Number(stakesField.value) });
+    showNotice('Łączymy się z PokerZone…');
+    const nick = name.value.trim();
+    const request = mode === 'create'
+      ? { type: 'create', name: nick, bigBlind: selectedBlind, playerCount: playersField.valueAsNumber }
+      : { type: 'join', name: nick, room };
+    connect(request);
   });
-  find('#copy-online-link').addEventListener('click', async () => {
+
+  async function copyInvite(value, success) {
     try {
-      await navigator.clipboard.writeText(link.value);
-      showNotice('Skopiowano zaproszenie.');
+      await navigator.clipboard.writeText(value);
+      showNotice(success);
     } catch {
-      link.focus();
-      link.select();
-      showNotice('Skopiuj zaznaczony link.');
+      code.focus();
+      code.select();
+      showNotice('Skopiuj zaznaczony kod zaproszenia.');
     }
+  }
+  find('#copy-online-code').addEventListener('click', () => copyInvite(code.value, 'Skopiowano kod zaproszenia.'));
+  find('#copy-online-link').addEventListener('click', () => {
+    if (membership) copyInvite(makeLink(membership.room).href, 'Skopiowano link zaproszenia.');
   });
   find('#close-online-dialog').addEventListener('click', () => stop());
   dialog.addEventListener('cancel', event => { event.preventDefault(); stop(); });

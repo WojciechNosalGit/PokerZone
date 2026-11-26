@@ -697,18 +697,16 @@ dialog.zone-surface::after {
   width: min(465px, calc(100% - 28px));
 }
 
-#online-form .zone-field + .zone-field,
-#online-form details,
-#online-invitation button {
-  margin-block-start: 9px;
+#online-options[hidden] {
+  display: none;
 }
 
-#online-form details summary {
-  color: #c4ecea;
-  cursor: pointer;
+#online-join-fields,
+#online-create-fields fieldset {
+  margin-block-start: 12px;
 }
 
-.zone-field :is(#online-name, #online-room, #online-server, #online-link) {
+.zone-field :is(#online-name, #online-room, #online-code) {
   width: 100%;
   min-width: 0;
   padding: 8px 10px;
@@ -717,6 +715,17 @@ dialog.zone-surface::after {
   background: #0b2532;
   color: var(--text);
   font: inherit;
+}
+
+#online-code {
+  color: var(--zone-gold);
+  font-weight: 750;
+  letter-spacing: .18em;
+}
+
+#online-waiting {
+  margin-block: 10px;
+  color: #c4ecea;
 }
 
 .online-table-status {

@@ -269,7 +269,7 @@ const pokerView = (() => {
   }
 
   function statusHTML(state, player, online) {
-    if (online && !online.connected) return 'Czekamy na połączenie obu graczy.';
+    if (online && !online.connected) return 'Czekamy na połączenie wszystkich graczy.';
     if (state.phase === 'finished' || state.phase === 'gameover') {
       return `<span class="result-title">${escapeHTML(state.summary)}</span>`;
     }

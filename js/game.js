@@ -425,7 +425,7 @@ const pokerGame = (() => {
       state.epoch++;
       const hero = human();
       const rebuy = hero.stack === 0 ? affordableBuyIn(state.bigBlind, bankroll, state.rebuyTarget) : 0;
-      if (hero.stack === 0) {
+      if (!rules.humanOnly && hero.stack === 0) {
         if (!rebuy) {
           leaveTable();
           return;
@@ -435,7 +435,7 @@ const pokerGame = (() => {
         state.heroBuyIns += rebuy;
         state.tableBuyIns += rebuy;
       }
-      const newBots = replaceBustedBots();
+      const newBots = rules.humanOnly ? [] : replaceBustedBots();
       const live = state.players.filter(player => player.stack > 0);
       state.dealer = rules.dealer?.() ?? nextSeat(state.dealer, player => player.stack > 0);
       state.handId = createId();
@@ -741,7 +741,10 @@ const pokerGame = (() => {
       state.runoutFrom = null;
       const hero = human();
       state.foldPending = false;
-      if ((hero.stack === 0 && bankroll === 0) || (rules.endOnBust && state.players.some(player => player.stack === 0))) {
+      const gameOver = rules.humanOnly
+        ? state.players.filter(player => player.stack > 0).length < 2
+        : hero.stack === 0 && bankroll === 0;
+      if (gameOver) {
         finishTable();
       }
       if (state.heroHand) {

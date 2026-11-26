@@ -109,3 +109,56 @@ test('private table masks cards, enforces turns, reconnects seats and pays out',
   guest.send({ type: 'leave' });
   assert.equal((await host.find(is('closed'))).message, 'Gracz opuścił stół online.');
 });
+
+test('one invitation seats up to eight players and starts only when the table is full', async t => {
+  const instance = createPokerServer();
+  t.after(() => instance.close());
+  const { server } = instance;
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = `ws://127.0.0.1:${server.address().port}/ws`;
+  const host = await player(address);
+  host.send({ type: 'create', name: 'Gracz 1', bigBlind: 4, playerCount: 9 });
+  assert.match((await host.find(is('error'))).message, /od 2 do 8/);
+  const count = 8;
+  host.send({ type: 'create', name: 'Gracz 1', bigBlind: 4, playerCount: count });
+  const { room } = await host.find(is('seat'));
+  const clients = [host];
+  const names = Array.from({ length: count }, (_, index) => `Gracz ${index + 1}`);
+  const waiting = present => message => message.type === 'state' && message.present === present && message.state === null;
+  for (let seat = 1; seat < count; seat++) {
+    const lobby = await host.find(waiting(seat));
+    assert.equal(lobby.playerCount, count);
+    assert.equal(lobby.connected, false);
+    const guest = await player(address);
+    guest.send({ type: 'join', name: names[seat], room });
+    assert.equal((await guest.find(is('seat'))).seat, seat);
+    clients.push(guest);
+  }
+
+  const ready = message => message.type === 'state' && message.state && !message.state.dealing;
+  const first = await Promise.all(clients.map(client => client.find(ready)));
+  for (const [seat, snapshot] of first.entries()) {
+    assert.equal(snapshot.present, count);
+    assert.equal(snapshot.connected, true);
+    assert.equal((snapshot.state.actor + seat) % count, first[0].state.actor);
+    assert.equal((snapshot.state.dealer + seat) % count, first[0].state.dealer);
+    assert.deepEqual(snapshot.state.players.map(player => player.name), [...names.slice(seat), ...names.slice(0, seat)]);
+    assert.equal(snapshot.state.players[0].hand.filter(Boolean).length, 2);
+    for (const player of snapshot.state.players.slice(1)) assert.deepEqual(player.hand, [null, null]);
+  }
+
+  let revision = first[0].revision - 1;
+  for (let index = 0; index < count - 1; index++) {
+    const turn = index === 0 ? first[0] : await host.find(message => ready(message) && message.revision > revision);
+    const seat = turn.state.actor;
+    revision = turn.revision;
+    action(clients[seat], turn, 'fold');
+  }
+  const finished = message => message.type === 'state' && message.state?.phase === 'finished';
+  const [hostResult, lastResult] = await Promise.all([host.find(finished), clients.at(-1).find(finished)]);
+  const [[winner, amount]] = hostResult.payouts;
+  assert.equal(amount, 6);
+  assert.deepEqual(lastResult.payouts, [[(winner + 1) % count, amount]]);
+  assert.equal(hostResult.state.players.reduce((sum, player) => sum + player.stack, 0), count * 400);
+});

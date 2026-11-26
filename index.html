@@ -146,22 +146,42 @@
       <h2 id="online-title">Graj online</h2>
       <button class="reset zone-close" id="close-online-dialog" type="button" aria-label="Zamknij okno online"></button>
     </header>
-    <form id="online-form">
+    <div class="setup-controls" id="online-options">
+      <button class="zone-art-button zone-gold-button" id="online-create" type="button">Utwórz stół</button>
+      <button class="zone-art-button" id="online-join" type="button">Dołącz kodem</button>
+    </div>
+    <form id="online-form" hidden>
       <div class="zone-field"><label for="online-name">Nick przy stole</label><input id="online-name" maxlength="24" required autocomplete="nickname"></div>
-      <div class="zone-field"><label for="online-room">Kod zaproszenia</label><input id="online-room" maxlength="10" spellcheck="false" autocomplete="off" autocapitalize="characters"></div>
-      <div class="zone-field"><label for="online-stakes">Stawka nowego stołu</label><select id="online-stakes"></select></div>
-      <details id="online-server-details">
-        <summary>Adres serwera</summary>
-        <div class="zone-field"><label class="zone-visually-hidden" for="online-server">Adres serwera gry</label><input id="online-server" type="url" placeholder="wss://serwer.example/ws" spellcheck="false"></div>
-      </details>
+      <div class="zone-field" id="online-join-fields" hidden><label for="online-room">Kod zaproszenia</label><input id="online-room" maxlength="10" spellcheck="false" autocomplete="off" autocapitalize="characters"></div>
+      <div id="online-create-fields" hidden>
+        <fieldset class="setup-stakes">
+          <legend>Stawka</legend>
+          <div class="stake-options" id="online-stakes"></div>
+        </fieldset>
+        <fieldset class="setup-player-control">
+          <legend id="online-player-label">Liczba graczy</legend>
+          <div class="setup-slider-row">
+            <div class="raise-stepper">
+              <button class="raise-step" id="online-players-less" type="button" aria-label="Zmniejsz liczbę graczy">−</button>
+              <input id="online-players" type="range" min="2" max="8" value="4" aria-labelledby="online-player-label">
+              <button class="raise-step" id="online-players-more" type="button" aria-label="Zwiększ liczbę graczy">+</button>
+            </div>
+            <output class="setup-buy-in-amount" id="online-player-count" for="online-players"></output>
+          </div>
+        </fieldset>
+      </div>
       <div class="setup-controls">
-        <button class="zone-art-button" type="submit" value="create">Utwórz stół</button>
-        <button class="zone-art-button" type="submit" value="join">Dołącz</button>
+        <button class="zone-art-button zone-gold-button" id="online-submit" type="submit"></button>
+        <button class="zone-art-button" id="online-back" type="button">Wróć</button>
       </div>
     </form>
     <div id="online-invitation" hidden>
-      <div class="zone-field"><label for="online-link">Link do stołu</label><input id="online-link" readonly></div>
-      <button class="zone-art-button" id="copy-online-link" type="button">Kopiuj zaproszenie</button>
+      <div class="zone-field"><label for="online-code">Kod zaproszenia</label><input id="online-code" readonly></div>
+      <p id="online-waiting" role="status"></p>
+      <div class="setup-controls">
+        <button class="zone-art-button zone-gold-button" id="copy-online-code" type="button">Kopiuj kod</button>
+        <button class="zone-art-button" id="copy-online-link" type="button">Kopiuj link</button>
+      </div>
     </div>
     <p class="menu-status" id="online-dialog-status" role="status" hidden></p>
   </dialog>

@@ -1,17 +1,19 @@
 import { randomBytes } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
-import { createGame, stakes, buyInFor, shuffleForOnline } from './engine.mjs';
+import { createGame, stakes, buyInFor, minPlayers, maxPlayers, shuffleForOnline } from './engine.mjs';
 
 const tableExpiry = 30 * 60 * 1000;
 const roomPattern = /^[A-F0-9]{10}$/;
 const supportedBlinds = new Set(stakes.map(stake => stake.bigBlind));
 
+const relativeSeat = (id, viewer, count) => id < 0 ? id : (id - viewer + count) % count;
+
 function viewForSeat(state, seat) {
   if (!state) return null;
   const { sessionId, handNo, phase, street, dealing, runoutFrom, currentBet, lastRaise, smallBlind, bigBlind,
     board, potChips, summary } = state;
-  const seatId = id => id < 0 || seat === 0 ? id : 1 - id;
-  const players = [state.players[seat], state.players[1 - seat]].map(player => {
+  const seatId = id => relativeSeat(id, seat, state.players.length);
+  const players = [...state.players.slice(seat), ...state.players.slice(0, seat)].map(player => {
     const { name, avatar, stack, bet, betChips, contributed, folded, allIn, canRaise, position, lastAction } = player;
     const canSee = player.id === seat || (!folded && (runoutFrom || street === 'showdown'));
     return {
@@ -31,7 +33,7 @@ export function attachRooms(server, { origins = [] } = {}) {
   const rooms = new Map();
   const bindings = new WeakMap();
   const connected = player => player?.socket?.readyState === WebSocket.OPEN;
-  const bothPresent = room => room.seats.every(connected);
+  const allPresent = room => room.seats.every(connected);
   const findRoom = code => typeof code === 'string' && roomPattern.test(code) ? rooms.get(code) : undefined;
 
   function send(socket, message) {
@@ -47,13 +49,14 @@ export function attachRooms(server, { origins = [] } = {}) {
   function broadcast(room, { restored = false, payouts = [], skippedRunout = false, sound } = {}) {
     room.revision++;
     const state = room.game?.getState();
+    const playerCount = room.seats.length;
+    const present = room.seats.filter(connected).length;
     room.seats.forEach((player, seat) => {
       send(player?.socket, {
         type: 'state', revision: room.revision,
-        opponent: room.seats[1 - seat]?.name ?? null,
-        connected: Boolean(connected(room.seats[1 - seat])),
+        playerCount, present, connected: present === playerCount,
         state: viewForSeat(state, seat), restored, skippedRunout, sound,
-        payouts: payouts.map(([id, amount]) => [seat === 0 ? id : 1 - id, amount])
+        payouts: payouts.map(([id, amount]) => [relativeSeat(id, seat, playerCount), amount])
       });
     });
   }
@@ -67,7 +70,6 @@ export function attachRooms(server, { origins = [] } = {}) {
     }, undefined, action => { sound = action; }, {
       startingBankroll: buyInFor(room.bigBlind),
       humanOnly: true,
-      endOnBust: true,
       deck: shuffleForOnline,
       preparePlayers(players) {
         for (const player of players) {
@@ -77,7 +79,7 @@ export function attachRooms(server, { origins = [] } = {}) {
         }
       }
     });
-    room.game.newGame({ playerCount: 2, bigBlind: room.bigBlind });
+    room.game.newGame({ playerCount: room.seats.length, bigBlind: room.bigBlind });
   }
 
   function attachSeat(room, seat, socket) {
@@ -87,7 +89,7 @@ export function attachRooms(server, { origins = [] } = {}) {
     bindings.set(socket, { room, seat });
     previous?.close(4001, 'Seat moved');
     send(socket, { type: 'seat', room: room.code, seat, token: player.token });
-    if (!bothPresent(room)) {
+    if (!allPresent(room)) {
       broadcast(room, { restored: true });
       return;
     }
@@ -119,21 +121,29 @@ export function attachRooms(server, { origins = [] } = {}) {
       if (!name || name.length > 24) { error(socket, 'Podaj nick od 1 do 24 znaków.'); return; }
       if (message.type === 'create') {
         if (!supportedBlinds.has(message.bigBlind)) { error(socket, 'Wybierz dostępną stawkę.'); return; }
+        const playerCount = message.playerCount === undefined ? minPlayers : message.playerCount;
+        if (!Number.isInteger(playerCount) || playerCount < minPlayers || playerCount > maxPlayers) {
+          error(socket, 'Wybierz od 2 do 8 graczy.');
+          return;
+        }
         if (rooms.size >= 500) { error(socket, 'Wszystkie stoły są zajęte. Spróbuj ponownie za chwilę.'); return; }
         let code;
         do code = randomBytes(5).toString('hex').toUpperCase(); while (rooms.has(code));
-        const room = { code, bigBlind: message.bigBlind, seats: [newPlayer(name), null], revision: 0, game: null,
+        const seats = Array(playerCount).fill(null);
+        seats[0] = newPlayer(name);
+        const room = { code, bigBlind: message.bigBlind, seats, revision: 0, game: null,
           incompleteSince: Date.now() };
         rooms.set(code, room);
         attachSeat(room, 0, socket);
       } else {
         const room = findRoom(message.room);
-        if (!room || room.seats[1]) {
+        const seat = room?.seats.indexOf(null) ?? -1;
+        if (seat < 0) {
           error(socket, room ? 'Ten stół jest już pełny.' : 'Nie ma takiego stołu. Sprawdź kod zaproszenia.');
           return;
         }
-        room.seats[1] = newPlayer(name);
-        attachSeat(room, 1, socket);
+        room.seats[seat] = newPlayer(name);
+        attachSeat(room, seat, socket);
       }
       return;
     }
@@ -156,7 +166,7 @@ export function attachRooms(server, { origins = [] } = {}) {
 
     const game = room.game;
     const state = game?.getState();
-    if (!state || !bothPresent(room)) { error(socket, 'Stół czeka na połączenie obu graczy.'); return; }
+    if (!state || !allPresent(room)) { error(socket, 'Stół czeka na połączenie wszystkich graczy.'); return; }
     if (message.revision !== room.revision) { error(socket, 'Sytuacja przy stole już się zmieniła.'); return; }
     if (message.type === 'next' && state.phase === 'finished') { game.startHand(); return; }
     if (message.type === 'next' && state.phase === 'gameover' && seat === 0) { startMatch(room); return; }
