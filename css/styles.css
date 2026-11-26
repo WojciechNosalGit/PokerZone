@@ -1628,6 +1628,19 @@ button:disabled {
   --avatar-row-3: 94.84%;
 }
 
+[data-avatar-preset^="adventure-"] {
+  --avatar-sheet: url("../assets/images/adventure-avatars.png");
+  --avatar-sheet-size: 423.39% 317.54%;
+  --avatar-native-size: 342px;
+  --avatar-column-1: 1.36%;
+  --avatar-column-2: 33.72%;
+  --avatar-column-3: 65.91%;
+  --avatar-column-4: 98.19%;
+  --avatar-row-1: 2.15%;
+  --avatar-row-2: 49.46%;
+  --avatar-row-3: 96.77%;
+}
+
 :is([data-avatar-preset$="-1"], [data-avatar-preset$="-5"], [data-avatar-preset$="-9"]) { --avatar-x: var(--avatar-column-1); }
 :is([data-avatar-preset$="-2"], [data-avatar-preset$="-6"], [data-avatar-preset$="-10"]) { --avatar-x: var(--avatar-column-2); }
 :is([data-avatar-preset$="-3"], [data-avatar-preset$="-7"], [data-avatar-preset$="-11"]) { --avatar-x: var(--avatar-column-3); }

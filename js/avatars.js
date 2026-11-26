@@ -31,6 +31,11 @@ const pokerAvatars = (() => {
       'male', 'female', 'male', 'female',
       'male', 'male', 'female', 'neutral',
       'female', 'male', 'neutral', 'female'
+    ]],
+    ['adventure', 'Przygodowe', [
+      'female', 'male', 'female', 'male',
+      'male', 'female', 'male', 'female',
+      'male', 'male', 'female', 'male'
     ]]
   ].map(([groupId, label, genders]) => ({
     id: groupId,
