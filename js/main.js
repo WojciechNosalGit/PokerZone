@@ -4,6 +4,8 @@
   const historyPanel = document.querySelector('#hand-history');
   const history = createPokerHistory(state => renderHistory(state));
   const renderHistory = createPokerHistoryView(historyPanel, history);
+  const onlineHistoryPanel = document.querySelector('#online-hand-history');
+  const renderOnlineHistory = createPokerHistoryView(onlineHistoryPanel, null, { online: true });
   const root = document.querySelector('#app');
   const dismissTableTooltip = bindPokerTooltips(document.querySelector('#poker-tooltip'));
   const setupProfile = document.querySelector('#setup-profile');
@@ -54,7 +56,8 @@
   const menuButton = document.querySelector('#game-menu');
   const setup = document.querySelector('#game-setup');
   const profileDialog = document.querySelector('#player-profile');
-  const chat = createPokerChat(root, document.querySelector('#table-chat-dialog'), game);
+  const chatDialog = document.querySelector('#table-chat-dialog');
+  const chat = createPokerChat(root, chatDialog, game, () => onlineActive ? online : null);
   let tutorialSpeech;
   let tutorialSession;
   const tutorial = createPokerTutorial((state, options) => {
@@ -86,22 +89,32 @@
       endOnlineButton.hidden = false;
       inviteOnlineButton.hidden = false;
       chat.onChange(null);
+      renderOnlineHistory({ entries: [] });
     },
     update(state, options, message) {
       dismissTableTooltip(root);
       renderOnline(state, options);
       if (!options.restored && options.sound) effects.onAction(options.sound);
       effects.onChange(state, options);
+      chat.onChange(state, options);
+      onlineHistoryPanel.hidden = !state;
       if (onlineStatus.textContent !== message) onlineStatus.textContent = message;
       onlineStatus.hidden = false;
     },
+    onProfile(player) { pokerView.applySeatProfile(root, player); },
+    onChat(player, text) { chat.showMessage(player, text); },
+    onHistory(entries) { renderOnlineHistory({ entries }); },
     leave(message) {
       onlineActive = false;
+      if (profileDialog.open) profileDialog.close();
+      if (chatDialog.open) chatDialog.close();
       document.body.classList.remove('online-active');
       endOnlineButton.hidden = true;
       inviteOnlineButton.hidden = true;
       onlineStatus.hidden = true;
+      onlineHistoryPanel.hidden = true;
       menuButton.hidden = false;
+      renderOnline(null);
       restoreSetup();
       const status = setup.querySelector('[data-menu-status]');
       status.textContent = message;
@@ -109,7 +122,7 @@
       setup.querySelector('#open-online').focus({ preventScroll: true });
     }
   });
-  const renderOnline = pokerView.createView(root, online.game);
+  const renderOnline = pokerView.createView(root, online.game, () => openProfile('table'));
 
   function updateBankroll() {
     const amount = formatAmount(game.getBankroll());
@@ -126,7 +139,8 @@
   function applyProfile(value) {
     game.setHeroProfile(value);
     const state = game.getState();
-    pokerView.applyProfile(root, state);
+    if (onlineActive) online.changeProfile(value);
+    else pokerView.applyProfile(root, state);
     updateSetupProfile(state?.players[0] ?? value);
   }
   const profile = createPokerProfile(profileDialog, applyProfile);
@@ -134,6 +148,11 @@
   let profileSource;
   function openProfile(source) {
     profileSource = source;
+    if (onlineActive) {
+      const player = online.game.getState()?.players[0];
+      if (player) profile.open({ ...player, nameSelected: true, avatarSelected: true });
+      return;
+    }
     game.pause();
     profile.open(game.getState()?.players[0]);
   }
@@ -145,7 +164,7 @@
     if (state && state.phase !== 'left') openSetup();
   }
 
-  setup.querySelector('#open-online').addEventListener('click', () => online.open(profile.current().name));
+  setup.querySelector('#open-online').addEventListener('click', () => online.open(profile.current()));
   endOnlineButton.addEventListener('click', () => online.stop());
   inviteOnlineButton.addEventListener('click', () => online.openInvitation());
   const tutorialButton = setup.querySelector('#setup-tutorial');
@@ -179,13 +198,13 @@
   leaveTableAction.querySelector('#leaveTable').addEventListener('click', game.leaveTable);
   profileDialog.addEventListener('close', () => {
     if (profileDialog.open) return;
-    if (!setup.open) game.resume();
+    if (!onlineActive && !setup.open) game.resume();
     const trigger = profileSource === 'setup' ? setupProfile : root.querySelector('#table-profile');
     (trigger ?? menuButton).focus({ preventScroll: true });
   });
   updateBankroll();
   openSetup();
-  online.open(profile.current().name, true);
+  online.open(profile.current(), true);
 
   const { rank5, score7, compareScore } = pokerCards;
   const { getState, act, newGame, startHand, estimateEquity } = game;

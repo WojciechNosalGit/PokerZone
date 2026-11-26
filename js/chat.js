@@ -1,6 +1,6 @@
 'use strict';
 
-function createPokerChat(root, dialog, game) {
+function createPokerChat(root, dialog, game, onlineTable = () => null) {
   const botReactions = {
     win: { icons: ['😄', '🥳', '😎', '🃏✨'], label: 'radość po wygranej' },
     loss: { icons: ['😡', '😤', '😩', '😓'], label: 'frustracja po przegranej' },
@@ -16,6 +16,7 @@ function createPokerChat(root, dialog, game) {
   let sessionId;
   let commentedHand;
   let lastSpeaker;
+  let pausedGame = false;
 
   function clearMessage(seat) {
     const message = messages.get(seat);
@@ -85,7 +86,7 @@ function createPokerChat(root, dialog, game) {
     publish(speaker, icons[pokerCards.randomIndex(icons.length)], { reactionLabel: label });
   }
 
-  function onChange(state, { restored = false, payouts = [] } = {}) {
+  function onChange(state, { restored = false, payouts = [], online = false } = {}) {
     if (sessionId !== state?.sessionId || state?.phase === 'left') {
       for (const seat of messages.keys()) clearMessage(seat);
       sessionId = state?.sessionId;
@@ -97,7 +98,7 @@ function createPokerChat(root, dialog, game) {
       if (state.players[seat]?.name === message.name) positionMessage(seat, message);
       else clearMessage(seat);
     }
-    if (!restored && payouts.length && state.handNo !== commentedHand) {
+    if (!online && !restored && payouts.length && state.handNo !== commentedHand) {
       commentedHand = state.handNo;
       commentOnResult(state, payouts);
     }
@@ -109,8 +110,11 @@ function createPokerChat(root, dialog, game) {
   }
 
   root.addEventListener('click', event => {
-    if (!event.target.closest('#write-chat') || dialog.open || game.getState()?.phase === 'gameover') return;
-    game.pause();
+    const online = onlineTable();
+    const state = (online?.game ?? game).getState();
+    if (!event.target.closest('#write-chat') || dialog.open || !state || state.phase === 'gameover') return;
+    pausedGame = !online;
+    if (pausedGame) game.pause();
     form.reset();
     updateDraft();
     dialog.showModal();
@@ -119,15 +123,22 @@ function createPokerChat(root, dialog, game) {
   form.addEventListener('submit', event => {
     event.preventDefault();
     updateDraft();
-    const player = game.getState()?.players[0];
+    const online = onlineTable();
+    const player = (online?.game ?? game).getState()?.players[0];
     if (send.disabled || !player) return;
-    publish(player, input.value.trim());
+    const text = input.value.trim();
+    if (online) {
+      if (!online.sendChat(text)) { count.value = 'Brak połączenia ze stołem'; return; }
+    } else publish(player, text);
     dialog.close();
   });
   dialog.querySelector('#cancel-table-chat').addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => {
-    if (dialog.open || document.querySelector('dialog[open]')) return;
-    game.resume();
+    if (dialog.open) return;
+    const resumeGame = pausedGame;
+    pausedGame = false;
+    if (document.querySelector('dialog[open]')) return;
+    if (resumeGame) game.resume();
     root.querySelector('#write-chat')?.focus({ preventScroll: true });
   });
   window.addEventListener('resize', () => {
@@ -139,5 +150,5 @@ function createPokerChat(root, dialog, game) {
     else clearMessage(player.id);
   }
 
-  return { onChange, speak };
+  return { onChange, speak, showMessage: publish };
 }

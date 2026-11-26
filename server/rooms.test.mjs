@@ -10,9 +10,9 @@ async function player(address) {
   socket.on('message', data => received.push(JSON.parse(data.toString())));
   await once(socket, 'open');
   return {
-    send(message) { socket.send(JSON.stringify(message)); },
-    async find(predicate) {
-      const deadline = Date.now() + 6000;
+    send(message) { socket.send(JSON.stringify({ version: 2, ...message })); },
+    async find(predicate, timeout = 6000) {
+      const deadline = Date.now() + timeout;
       do {
         const index = received.findIndex(predicate);
         if (index !== -1) return received.splice(index, 1)[0];
@@ -64,6 +64,8 @@ test('private table masks cards, enforces turns, reconnects seats and pays out',
 
   const hostTurn = await host.find(hand('preflop', 0));
   const guestView = await guest.find(hand('preflop', 1));
+  assert.equal(hostTurn.turnSeconds, 30);
+  assert.equal(hostTurn.remainingMs, 30_000);
   assert.equal(hostTurn.state.smallBlind, 10);
   assert.equal(hostTurn.state.bigBlind, 20);
   assert.deepEqual(hostTurn.state.players.map(player => player.name), ['Wojtek', 'Ola']);
@@ -106,6 +108,12 @@ test('private table masks cards, enforces turns, reconnects seats and pays out',
   assert.deepEqual(hostResult.state.players[1].hand, guestResult.state.players[0].hand);
   assert.equal(hostResult.payouts.reduce((sum, [, amount]) => sum + amount, 0), 40);
   assert.equal(hostResult.state.players.reduce((sum, player) => sum + player.stack, 0), 4000);
+  const [hostHistory, guestHistory] = await Promise.all([host.find(is('history')), guest.find(is('history'))]);
+  assert.deepEqual(hostHistory.entries[0].hero.cards, hostTurn.state.players[0].hand);
+  assert.deepEqual(guestHistory.entries[0].hero.cards, guestView.state.players[0].hand);
+  assert.deepEqual(hostHistory.entries[0].opponents[0].cards, guestHistory.entries[0].hero.cards);
+  assert.deepEqual(guestHistory.entries[0].opponents[0].cards, hostHistory.entries[0].hero.cards);
+  assert.deepEqual(guestHistory.entries[0].hero.actions.map(({ type }) => type), ['check', 'check', 'check', 'check']);
   guest.send({ type: 'leave' });
   assert.equal((await host.find(is('closed'))).message, 'Gracz opuścił stół online.');
 });
@@ -233,4 +241,56 @@ test('an online bot takes its own turn', async t => {
   action(host, turn, 'call');
   const reply = await host.find(message => message.state?.logs.some(entry => entry.action && entry.playerId === 1));
   assert.ok(reply.revision > turn.revision);
+});
+
+test('online profile, chat and turn expiry preserve private hand histories', async t => {
+  const instance = createPokerServer();
+  t.after(() => instance.close());
+  const { server } = instance;
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = `ws://127.0.0.1:${server.address().port}/ws`;
+  const host = await player(address);
+  const setup = { type: 'create', name: '12345678901', avatar: 'adventure-1', bigBlind: 4, turnSeconds: 15 };
+  host.send(setup);
+  assert.match((await host.find(is('error'))).message, /10 znaków/);
+  host.send({ ...setup, name: 'Wojtek', turnSeconds: 91 });
+  assert.match((await host.find(is('error'))).message, /15 do 90/);
+  host.send({ ...setup, name: 'Wojtek' });
+  const { room } = await host.find(is('seat'));
+  let guest = await player(address);
+  guest.send({ type: 'join', name: 'Ola', avatar: 'mafia-1', room });
+  const { token } = await guest.find(is('seat'));
+  const [hostTurn, guestTurn] = await Promise.all([host.find(hand('preflop', 0)), guest.find(hand('preflop', 1))]);
+  assert.equal(hostTurn.turnSeconds, 15);
+  assert.equal(hostTurn.remainingMs, 15_000);
+  assert.equal(guestTurn.state.players[0].avatar, 'mafia-1');
+  assert.equal(guestTurn.state.players[1].avatar, 'adventure-1');
+  const started = Date.now();
+
+  host.send({ type: 'profile', name: 'Wojtek', avatar: 'adventure-12' });
+  assert.deepEqual(await host.find(is('profile')), { type: 'profile', seat: 0, name: 'Wojtek', avatar: 'adventure-12' });
+  assert.deepEqual(await guest.find(is('profile')), { type: 'profile', seat: 1, name: 'Wojtek', avatar: 'adventure-12' });
+  guest.send({ type: 'chat', text: 'Cześć!' });
+  assert.deepEqual(await host.find(is('chat')), { type: 'chat', seat: 1, text: 'Cześć!' });
+  assert.deepEqual(await guest.find(is('chat')), { type: 'chat', seat: 0, text: 'Cześć!' });
+
+  const [hostHistory, guestHistory] = await Promise.all([host.find(is('history'), 17_000), guest.find(is('history'), 17_000)]);
+  assert.ok(Date.now() - started > 14_000);
+  const [hostHand, guestHand] = [hostHistory.entries[0], guestHistory.entries[0]];
+  for (const hand of [hostHand, guestHand]) {
+    assert.equal(hand.ending, 'fold');
+    assert.equal(hand.opponents[0].cards, null);
+    assert.equal(hand.opponents[0].revealed, false);
+  }
+  assert.deepEqual(hostHand.hero.cards, hostTurn.state.players[0].hand);
+  assert.deepEqual(guestHand.hero.cards, guestTurn.state.players[0].hand);
+  assert.equal(hostHand.hero.actions[0].type, 'fold');
+  assert.equal(guestHand.hero.payout, 6);
+
+  await guest.close();
+  guest = await player(address);
+  guest.send({ type: 'resume', room, token });
+  await guest.find(is('seat'));
+  assert.deepEqual((await guest.find(is('history'))).entries, [guestHand]);
 });

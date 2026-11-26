@@ -1,6 +1,6 @@
 'use strict';
 
-function createPokerOnline(dialog, { enter, update, leave }) {
+function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, onHistory }) {
   const find = selector => dialog.querySelector(selector);
   const options = find('#online-options');
   const title = find('#online-title');
@@ -21,8 +21,10 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   const name = find('#online-name');
   const playersField = find('#online-players');
   const botsField = find('#online-bots');
+  const timeField = find('#online-turn-time');
   const { stakes, minPlayers, maxPlayers, defaultPlayers } = pokerGame;
   const roomPattern = /^[A-F0-9]{10}$/;
+  const version = 2;
   const chipValues = new Set([1, 5, 10, 25, 100, 500, 1000]);
   const configuredServer = document.querySelector('meta[name="pokerzone-online-url"]')?.content.trim() ?? '';
   const endpoint = normalizeServer(configuredServer === '/ws' ? location.origin + configuredServer : configuredServer);
@@ -31,6 +33,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   let selectedBlind;
   let mode;
   let keepInvitation = false;
+  let avatar = '';
 
   const stakeButtons = new Map(stakes.map(({ smallBlind, bigBlind }) => {
     const button = document.createElement('button');
@@ -43,7 +46,8 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   }));
   const counters = [
     { field: playersField, less: find('#online-players-less'), more: find('#online-players-more'), output: find('#online-player-count') },
-    { field: botsField, less: find('#online-bots-less'), more: find('#online-bots-more'), output: find('#online-bot-count') }
+    { field: botsField, less: find('#online-bots-less'), more: find('#online-bots-more'), output: find('#online-bot-count') },
+    { field: timeField, less: find('#online-time-less'), more: find('#online-time-more'), output: find('#online-turn-seconds'), unit: ' s' }
   ];
 
   let socket;
@@ -55,6 +59,9 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   let connected = false;
   let awaiting = false;
   let queuedFold;
+  let clock;
+  let pendingProfile;
+  const hands = new Map();
 
   const whole = value => Number.isSafeInteger(value) && value >= 0;
   const validChips = chips => Array.isArray(chips) && chips.every(chip => chipValues.has(chip));
@@ -63,6 +70,18 @@ function createPokerOnline(dialog, { enter, update, leave }) {
 
   const validCount = count => Number.isInteger(count) && count >= minPlayers && count <= maxPlayers;
   const validSeat = (id, count) => whole(id) && id < count;
+  const validTurnSeconds = seconds => Number.isInteger(seconds) && seconds >= 15 && seconds <= 90;
+  const presetAvatar = value => pokerAvatars.isPreset(value) ? value : '';
+
+  function validHistoryEntry(hand) {
+    const cards = (list, lengths) => Array.isArray(list) && lengths.includes(list.length) && list.every(validCard);
+    const { hero, opponents } = hand ?? {};
+    return typeof hand?.id === 'string' && Number.isFinite(Date.parse(hand.finishedAt))
+      && ['showdown', 'fold'].includes(hand.ending) && cards(hand.board, [0, 3, 4, 5])
+      && cards(hero?.cards, [2]) && Array.isArray(hero.actions) && Array.isArray(opponents)
+      && opponents.every(other => typeof other?.name === 'string' && validSeat(other.seat, maxPlayers)
+        && (other.revealed ? hand.ending === 'showdown' && cards(other.cards, [2]) : other.cards === null));
+  }
 
   function validSnapshot(snapshot, count) {
     return typeof snapshot.sessionId === 'string' && ['betting', 'finished', 'gameover'].includes(snapshot.phase)
@@ -96,9 +115,9 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   function updateCounts() {
     playersField.max = maxPlayers - botsField.valueAsNumber;
     botsField.max = maxPlayers - playersField.valueAsNumber;
-    for (const { field, less, more, output } of counters) {
+    for (const { field, less, more, output, unit = '' } of counters) {
       const value = field.valueAsNumber;
-      output.value = value;
+      output.value = `${value}${unit}`;
       less.disabled = value === Number(field.min);
       more.disabled = value === Number(field.max);
     }
@@ -140,7 +159,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
         if (socket?.readyState !== WebSocket.OPEN) return;
         setConnecting(true);
         showNotice('Zajmujemy miejsce…');
-        socket.send(JSON.stringify({ type: 'join', room, seat: id, name: name.value.trim() }));
+        socket.send(JSON.stringify({ type: 'join', room, seat: id, name: name.value.trim(), avatar, version }));
         connectionTimeout = setTimeout(() => failConnection(socket, connectionFailed), 10_000);
       });
       return button;
@@ -189,7 +208,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   }
 
   function draw(message, options = {}) {
-    update(state, { ...options, online: { connected, host: membership?.seat === 0 } }, message);
+    update(state, { ...options, online: { connected, host: membership?.seat === 0, clock: connected ? clock : null } }, message);
   }
 
   function stop(message = '', notify = true) {
@@ -200,6 +219,8 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     const oldMembership = membership;
     membership = null;
     state = null;
+    clock = pendingProfile = undefined;
+    hands.clear();
     keepInvitation = false;
     queuedFold = undefined;
     connected = awaiting = false;
@@ -215,8 +236,21 @@ function createPokerOnline(dialog, { enter, update, leave }) {
       url.searchParams.delete('table');
       url.searchParams.delete('server');
       history.replaceState(null, '', url);
+      onHistory([]);
       leave(message);
     }
+  }
+
+  function sendMemberMessage(type, fields) {
+    if (!membership || socket?.readyState !== WebSocket.OPEN) return false;
+    socket.send(JSON.stringify({ type, ...fields }));
+    return true;
+  }
+
+  function changeProfile(profile) {
+    avatar = presetAvatar(profile.avatar);
+    pendingProfile = { name: profile.name.trim().replace(/\s+/g, ' '), avatar };
+    sendMemberMessage('profile', pendingProfile);
   }
 
   function sendCommand(type, fields) {
@@ -260,13 +294,23 @@ function createPokerOnline(dialog, { enter, update, leave }) {
         throw new Error('Invalid seat selection');
       }
     } else if (message?.type === 'state' && membership) {
-      const { playerCount, present, humanCount = playerCount, botCount = 0 } = message;
+      const { playerCount, present, humanCount = playerCount, botCount = 0, turnSeconds = 30, remainingMs = null } = message;
       if (!whole(message.revision) || !validCount(playerCount) || !whole(present) || present > humanCount
         || !whole(humanCount) || !whole(botCount) || humanCount + botCount !== playerCount
         || typeof message.connected !== 'boolean' || !validSeat(membership.seat, playerCount)
+        || !validTurnSeconds(turnSeconds) || (remainingMs !== null && (!whole(remainingMs) || remainingMs > turnSeconds * 1000))
         || !Array.isArray(message.payouts) || !message.payouts.every(payout => Array.isArray(payout)
           && validSeat(payout[0], playerCount) && whole(payout[1]))
         || (message.state !== null && (!message.state || !validSnapshot(message.state, playerCount)))) throw new Error('Invalid state');
+    } else if (message?.type === 'history' && membership) {
+      if (!Array.isArray(message.entries) || !message.entries.every(validHistoryEntry)) throw new Error('Invalid history');
+    } else if (message?.type === 'profile' && membership) {
+      if (!validSeat(message.seat, maxPlayers) || typeof message.name !== 'string' || !message.name || message.name.length > 10
+        || typeof message.avatar !== 'string' || message.avatar !== presetAvatar(message.avatar)) throw new Error('Invalid profile');
+    } else if (message?.type === 'chat' && membership) {
+      if (!validSeat(message.seat, maxPlayers) || typeof message.text !== 'string' || !message.text || message.text.length > 72) {
+        throw new Error('Invalid chat message');
+      }
     } else if (!(message?.type === 'error' || (message?.type === 'closed' && membership))
       || typeof message.message !== 'string') {
       throw new Error('Unrecognized PokerZone message');
@@ -294,6 +338,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
         enter();
         if (dialog.open) code.focus({ preventScroll: true });
       }
+      if (pendingProfile) sendMemberMessage('profile', pendingProfile);
       return;
     }
     if (message.type === 'seats') {
@@ -303,6 +348,25 @@ function createPokerOnline(dialog, { enter, update, leave }) {
       return;
     }
     if (message.type === 'closed') { stop(message.message, false); return; }
+    if (message.type === 'history') {
+      for (const entry of message.entries) hands.set(entry.id, entry);
+      onHistory([...hands.values()].sort((a, b) => b.finishedAt.localeCompare(a.finishedAt)));
+      return;
+    }
+    if (message.type === 'profile') {
+      const player = state?.players[message.seat];
+      if (message.seat === 0 && message.name === pendingProfile?.name && message.avatar === pendingProfile?.avatar) pendingProfile = undefined;
+      if (player) {
+        Object.assign(player, { name: message.name, avatar: message.avatar });
+        onProfile(player);
+      }
+      return;
+    }
+    if (message.type === 'chat') {
+      const player = state?.players[message.seat];
+      if (player) onChat(player, message.text);
+      return;
+    }
     if (message.type === 'error') {
       awaiting = false;
       if (message.code === 'resume') {
@@ -318,6 +382,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     revision = message.revision;
     awaiting = false;
     state = message.state;
+    clock = message.remainingMs == null ? null : { endsAt: performance.now() + message.remainingMs, seconds: message.turnSeconds };
     const occupancy = `Gracze ${message.present}/${message.humanCount ?? message.playerCount} · Boty ${message.botCount ?? 0}`;
     enterTable.hidden = !state;
     waiting.textContent = state ? occupancy : `${occupancy}. Czekamy na drugiego uczestnika.`;
@@ -344,7 +409,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     socket = connection;
     connectionTimeout = setTimeout(() => connection.close(), 10_000);
     connection.addEventListener('open', () => {
-      if (socket === connection) connection.send(JSON.stringify(request));
+      if (socket === connection) connection.send(JSON.stringify({ ...request, version }));
     });
     connection.addEventListener('message', event => {
       if (socket !== connection) return;
@@ -377,14 +442,16 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     });
   }
 
-  function open(defaultName, fromInvite = false) {
+  function open(profile, fromInvite = false) {
     if (dialog.open || membership) return;
     const parameters = new URLSearchParams(location.search);
     const invitedRoom = fromInvite ? parameters.get('table')?.toUpperCase() : '';
     if (fromInvite && !roomPattern.test(invitedRoom)) return;
-    name.value = defaultName;
+    name.value = profile.name;
+    avatar = presetAvatar(profile.avatar);
     roomField.value = invitedRoom || '';
     botsField.value = 0;
+    timeField.value = 30;
     playersField.max = maxPlayers;
     playersField.value = defaultPlayers;
     updateCounts();
@@ -433,7 +500,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     setConnecting(true);
     showNotice('Łączymy się z PokerZone…');
     const request = mode === 'create'
-      ? { type: 'create', name: nick, bigBlind: selectedBlind, playerCount, botCount }
+      ? { type: 'create', name: nick, avatar, bigBlind: selectedBlind, playerCount, botCount, turnSeconds: timeField.valueAsNumber }
       : { type: 'inspect', room };
     connect(request);
   });
@@ -482,5 +549,5 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     connect({ type: 'resume', room: membership.room, token: membership.token });
   });
 
-  return { game, open, openInvitation, stop };
+  return { game, open, openInvitation, stop, changeProfile, sendChat: text => sendMemberMessage('chat', { text }) };
 }

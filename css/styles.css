@@ -511,7 +511,7 @@ button:disabled {
 
   :where(.hand-history:not([hidden]), .history-hand[open] .history-hand-body,
     .history-hand[open] .history-opponents .cards, .menu-status:not([hidden]),
-    #history-import-status:not([hidden]), #history-more:not([hidden])) {
+    #history-import-status:not([hidden]), .history-more:not([hidden])) {
     animation: content-enter 145ms cubic-bezier(.22,.75,.25,1);
   }
 }
@@ -984,7 +984,7 @@ button:disabled {
   margin: 0;
 }
 
-#history-entries {
+.history-entries {
   display: grid;
   gap: 8px;
 }
@@ -1068,7 +1068,7 @@ button:disabled {
   accent-color: var(--gold);
 }
 
-#history-more {
+.history-more {
   margin-top: 10px;
 }
 

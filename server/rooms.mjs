@@ -1,13 +1,35 @@
 import { randomBytes } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
-import { createGame, stakes, buyInFor, minPlayers, maxPlayers, shuffleForOnline } from './engine.mjs';
+import { createGame, stakes, buyInFor, minPlayers, maxPlayers, shuffleForOnline, isAvatarPreset } from './engine.mjs';
 
 const tableExpiry = 30 * 60 * 1000;
 const roomPattern = /^[A-F0-9]{10}$/;
 const supportedBlinds = new Set(stakes.map(stake => stake.bigBlind));
+const historyLimit = 50;
 
 const relativeSeat = (id, viewer, count) => id < 0 ? id : (id - viewer + count) % count;
-const avatarFor = seat => seat === 0 ? 'neon-5' : `rick-${seat + 1}`;
+const normalizeName = name => typeof name === 'string' ? name.trim().replace(/\s+/g, ' ') : '';
+const normalizeAvatar = avatar => isAvatarPreset(avatar) ? avatar : '';
+
+function historyForSeat(state, record, winnings, seat, actions) {
+  const player = state.players[seat];
+  const seatId = id => relativeSeat(id, seat, state.players.length);
+  const payout = winnings.get(seat) ?? 0;
+  return {
+    id: record.id, sessionId: record.sessionId, handNumber: record.handNumber, finishedAt: record.finishedAt,
+    ending: record.ending, board: record.board, smallBlind: record.smallBlind, bigBlind: record.bigBlind,
+    dealerSeat: seatId(record.dealerSeat), smallBlindSeat: seatId(record.smallBlindSeat), bigBlindSeat: seatId(record.bigBlindSeat),
+    pot: record.pot,
+    hero: {
+      cards: player.hand, startingStack: player.stack + player.contributed - payout, endingStack: player.stack,
+      contributed: player.contributed, payout, folded: player.folded, actions: actions.get(seat) ?? []
+    },
+    opponents: state.players.filter(other => other.id !== seat && other.hand.length === 2).map(other => {
+      const revealed = record.ending === 'showdown' && !other.folded;
+      return { seat: seatId(other.id), name: other.name, revealed, cards: revealed ? other.hand : null };
+    })
+  };
+}
 
 function viewForSeat(state, seat, room) {
   if (!state) return null;
@@ -20,7 +42,7 @@ function viewForSeat(state, seat, room) {
     const canSee = player.id === seat || (!folded && (runoutFrom || street === 'showdown'));
     return {
       id: seatId(player.id), kind: player.kind, name: waiting ? room.seats[player.id].name : player.name,
-      avatar: waiting ? avatarFor(player.id) : player.avatar,
+      avatar: waiting ? room.seats[player.id].avatar : player.avatar,
       stack, bet, betChips, contributed, folded, allIn, canRaise, position, lastAction, waiting,
       hand: canSee ? player.hand : player.hand.map(() => null)
     };
@@ -55,15 +77,64 @@ export function attachRooms(server, { origins = [] } = {}) {
       spots: room.seats.map((player, id) => room.botSeats.has(id) ? 'bot' : player ? 'taken' : 'free') });
   }
 
+  function clearClock(room) {
+    clearTimeout(room.clock?.timer);
+    room.clock = null;
+  }
+
+  function expireTurn(room, clock) {
+    const state = room.game?.getState();
+    if (room.clock !== clock || clock.deadline === null || !state || !allPresent(room)) return;
+    const player = state.players[state.actor];
+    if (player?.id !== clock.actor || state.handId !== clock.handId || state.street !== clock.street) return;
+    clearTimeout(clock.timer);
+    room.game.act(clock.actor, { type: player.bet >= state.currentBet ? 'check' : 'fold' });
+  }
+
+  function updateClock(room, state, tableConnected) {
+    const actor = state?.players[state.actor];
+    if (state?.phase !== 'betting' || state.dealing || actor?.kind !== 'human') {
+      clearClock(room);
+      return null;
+    }
+    let clock = room.clock;
+    if (clock?.handId !== state.handId || clock.street !== state.street || clock.actor !== actor.id) {
+      clearClock(room);
+      clock = room.clock = { handId: state.handId, street: state.street, actor: actor.id,
+        remaining: room.turnSeconds * 1000, deadline: null, timer: null };
+    }
+    const now = Date.now();
+    if (!tableConnected && clock.deadline !== null) {
+      clock.remaining = Math.max(0, clock.deadline - now);
+      clearTimeout(clock.timer);
+      clock.deadline = null;
+    }
+    if (tableConnected && clock.deadline === null) {
+      clock.deadline = now + clock.remaining;
+      clock.timer = setTimeout(() => expireTurn(room, clock), clock.remaining);
+    }
+    return clock.deadline === null ? null : Math.max(0, clock.deadline - now);
+  }
+
+  function sendSeatEvent(room, seat, payload) {
+    const count = room.seats.length;
+    room.seats.forEach((player, viewer) => {
+      if (player?.socket?.supportsTableEvents) send(player.socket, { ...payload, seat: relativeSeat(seat, viewer, count) });
+    });
+  }
+
   function broadcast(room, { restored = false, payouts = [], skippedRunout = false, sound } = {}) {
     room.revision++;
     const state = room.game?.getState();
     const playerCount = room.seats.length;
     const present = room.seats.filter(connected).length;
+    const tableConnected = Boolean(state) && allPresent(room);
+    const remainingMs = updateClock(room, state, tableConnected);
     room.seats.forEach((player, seat) => {
       send(player?.socket, {
         type: 'state', revision: room.revision,
-        playerCount, humanCount: room.humanCount, botCount: room.botSeats.size, present, connected: Boolean(state) && allPresent(room),
+        playerCount, humanCount: room.humanCount, botCount: room.botSeats.size, present, connected: tableConnected,
+        turnSeconds: room.turnSeconds, remainingMs,
         state: viewForSeat(state, seat, room), restored, skippedRunout, sound,
         payouts: payouts.map(([id, amount]) => [relativeSeat(id, seat, playerCount), amount])
       });
@@ -71,19 +142,42 @@ export function attachRooms(server, { origins = [] } = {}) {
   }
 
   function startMatch(room) {
+    clearClock(room);
     room.game?.resetGame();
     let sound;
+    let handId;
+    const actions = new Map();
     const prepareHuman = (player, member) => {
       player.kind = 'human';
       player.name = member?.name ?? '';
-      player.avatar = member ? avatarFor(player.id) : null;
+      player.avatar = member?.avatar ?? null;
       player.stack = member ? buyInFor(room.bigBlind) : 0;
       if (member) member.waiting = false;
     };
     room.game = createGame((state, options) => {
-      if (state) broadcast(room, { ...options, sound });
+      if (state) {
+        if (handId !== state.handId) {
+          actions.clear();
+          handId = state.handId;
+        }
+        broadcast(room, { ...options, sound });
+      }
       sound = undefined;
-    }, undefined, action => { sound = action; }, {
+    }, (record, winnings) => {
+      const state = room.game.getState();
+      room.seats.forEach((member, seat) => {
+        if (!member || state.players[seat].hand.length !== 2) return;
+        const entry = historyForSeat(state, record, winnings, seat, actions);
+        member.history.unshift(entry);
+        if (member.history.length > historyLimit) member.history.pop();
+        if (member.socket?.supportsTableEvents) send(member.socket, { type: 'history', entries: [entry] });
+      });
+    }, (action, { playerId, ...detail }) => {
+      sound = action;
+      if (!room.seats[playerId]) return;
+      if (!actions.has(playerId)) actions.set(playerId, []);
+      actions.get(playerId).push(detail);
+    }, {
       startingBankroll: buyInFor(room.bigBlind),
       onlineTable: true,
       deck: shuffleForOnline,
@@ -108,13 +202,15 @@ export function attachRooms(server, { origins = [] } = {}) {
     room.game.newGame({ playerCount: room.seats.length, bigBlind: room.bigBlind });
   }
 
-  function attachSeat(room, seat, socket) {
+  function attachSeat(room, seat, socket, version) {
     const player = room.seats[seat];
     const previous = player.socket;
     player.socket = socket;
+    socket.supportsTableEvents = version === 2;
     bindings.set(socket, { room, seat });
     previous?.close(4001, 'Seat moved');
     send(socket, { type: 'seat', room: room.code, seat, token: player.token });
+    if (socket.supportsTableEvents && player.history.length) send(socket, { type: 'history', entries: player.history });
     if (!allPresent(room)) {
       broadcast(room, { restored: true });
       return;
@@ -135,6 +231,7 @@ export function attachRooms(server, { origins = [] } = {}) {
 
   function closeRoom(room, reason) {
     rooms.delete(room.code);
+    clearClock(room);
     room.game?.resetGame();
     for (const player of room.seats) {
       if (!player?.socket) continue;
@@ -144,8 +241,8 @@ export function attachRooms(server, { origins = [] } = {}) {
     }
   }
 
-  function newPlayer(name, waiting = false) {
-    return { name, waiting, token: randomBytes(24).toString('base64url'), socket: null };
+  function newPlayer(name, avatar, waiting = false) {
+    return { name, avatar, waiting, history: [], token: randomBytes(24).toString('base64url'), socket: null };
   }
 
   function seatRequest(socket, message) {
@@ -156,12 +253,18 @@ export function attachRooms(server, { origins = [] } = {}) {
       return;
     }
     if (message.type === 'create' || message.type === 'join') {
-      const name = typeof message.name === 'string' ? message.name.trim().replace(/\s+/g, ' ') : '';
-      if (!name || name.length > 24) { error(socket, 'Podaj nick od 1 do 24 znaków.'); return; }
+      const name = normalizeName(message.name);
+      if (!name || name.length > 10) { error(socket, 'Podaj nick od 1 do 10 znaków.'); return; }
+      const avatar = normalizeAvatar(message.avatar);
       if (message.type === 'create') {
         if (!supportedBlinds.has(message.bigBlind)) { error(socket, 'Wybierz dostępną stawkę.'); return; }
         const humanCount = message.playerCount === undefined ? minPlayers : message.playerCount;
         const botCount = message.botCount === undefined ? 0 : message.botCount;
+        const turnSeconds = message.turnSeconds === undefined ? 30 : message.turnSeconds;
+        if (!Number.isInteger(turnSeconds) || turnSeconds < 15 || turnSeconds > 90) {
+          error(socket, 'Wybierz od 15 do 90 sekund na ruch.');
+          return;
+        }
         const total = humanCount + botCount;
         if (!Number.isInteger(humanCount) || humanCount < 1 || !Number.isInteger(botCount) || botCount < 0
           || total < minPlayers || total > maxPlayers) {
@@ -174,12 +277,12 @@ export function attachRooms(server, { origins = [] } = {}) {
         const seats = Array(total).fill(null);
         const botSeats = new Set(Array.from({ length: botCount }, (_, index) =>
           1 + Math.floor((index + 0.5) * (total - 1) / botCount)));
-        seats[0] = newPlayer(name);
+        seats[0] = newPlayer(name, avatar);
         const minimumToStart = message.botCount === undefined ? total : minPlayers;
-        const room = { code, bigBlind: message.bigBlind, seats, botSeats, humanCount, minimumToStart, revision: 0, game: null,
-          incompleteSince: Date.now() };
+        const room = { code, bigBlind: message.bigBlind, seats, botSeats, humanCount, minimumToStart, turnSeconds,
+          revision: 0, game: null, clock: null, incompleteSince: Date.now() };
         rooms.set(code, room);
-        attachSeat(room, 0, socket);
+        attachSeat(room, 0, socket, message.version);
       } else {
         const room = findRoom(message.room);
         if (!room) { error(socket, 'Nie ma takiego stołu. Sprawdź kod zaproszenia.'); return; }
@@ -191,8 +294,8 @@ export function attachRooms(server, { origins = [] } = {}) {
           showSeats(room, socket);
           return;
         }
-        room.seats[seat] = newPlayer(name, Boolean(room.game));
-        attachSeat(room, seat, socket);
+        room.seats[seat] = newPlayer(name, avatar, Boolean(room.game));
+        attachSeat(room, seat, socket, message.version);
       }
       return;
     }
@@ -200,7 +303,7 @@ export function attachRooms(server, { origins = [] } = {}) {
       const room = findRoom(message.room);
       const seat = room && typeof message.token === 'string' && room.seats.findIndex(player => player?.token === message.token);
       if (typeof seat !== 'number' || seat < 0) { error(socket, 'To miejsce przy stole nie jest już dostępne.', 'resume'); return; }
-      attachSeat(room, seat, socket);
+      attachSeat(room, seat, socket, message.version);
       return;
     }
     error(socket, 'Najpierw utwórz stół lub dołącz do gry.');
@@ -215,7 +318,31 @@ export function attachRooms(server, { origins = [] } = {}) {
 
     const game = room.game;
     const state = game?.getState();
+    if (message.type === 'profile') {
+      const member = room.seats[seat];
+      const name = normalizeName(message.name);
+      if (!name || name.length > 10) { error(socket, 'Podaj nick od 1 do 10 znaków.'); return; }
+      const avatar = normalizeAvatar(message.avatar);
+      if (member.name === name && member.avatar === avatar) {
+        if (socket.supportsTableEvents) send(socket, { type: 'profile', seat: 0, name, avatar });
+        return;
+      }
+      Object.assign(member, { name, avatar });
+      if (state && !member.waiting) Object.assign(state.players[seat], { name, avatar });
+      sendSeatEvent(room, seat, { type: 'profile', name, avatar });
+      return;
+    }
+    if (message.type === 'chat') {
+      const member = room.seats[seat];
+      const text = typeof message.text === 'string' ? message.text.trim() : '';
+      if (!state || !text || text.length > 72 || Date.now() - (member.lastChatAt ?? 0) < 1000) return;
+      member.lastChatAt = Date.now();
+      sendSeatEvent(room, seat, { type: 'chat', text });
+      return;
+    }
     if (!state || !allPresent(room)) { error(socket, 'Stół czeka na połączenie graczy.'); return; }
+    const clock = room.clock;
+    if (clock?.deadline != null && clock.deadline <= Date.now()) expireTurn(room, clock);
     if (message.revision !== room.revision) { error(socket, 'Sytuacja przy stole już się zmieniła.'); return; }
     if (message.type === 'next' && state.phase === 'finished') { game.startHand(); return; }
     if (message.type === 'next' && state.phase === 'gameover' && seat === 0) { startMatch(room); return; }

@@ -50,6 +50,7 @@
     <p class="online-table-status" id="online-table-status" role="status" hidden></p>
     <div id="app" aria-live="polite"></div>
     <section class="panel hand-history" id="hand-history" aria-labelledby="hand-history-title" hidden></section>
+    <section class="panel hand-history" id="online-hand-history" aria-labelledby="online-hand-history-title" hidden></section>
   </main>
   <dialog class="setup-dialog zone-dialog zone-surface" id="game-setup" aria-labelledby="setup-title" closedby="none">
     <span class="dialog-motifs" aria-hidden="true"></span>
@@ -152,7 +153,7 @@
       <button class="zone-art-button" id="online-join" type="button">Dołącz kodem</button>
     </div>
     <form id="online-form" hidden>
-      <div class="zone-field"><label for="online-name">Nick przy stole</label><input id="online-name" maxlength="24" required autocomplete="nickname"></div>
+      <div class="zone-field"><label for="online-name">Nick przy stole</label><input id="online-name" maxlength="10" required autocomplete="nickname"></div>
       <div class="zone-field" id="online-join-fields" hidden><label for="online-room">Kod zaproszenia</label><input id="online-room" maxlength="10" spellcheck="false" autocomplete="off" autocapitalize="characters"></div>
       <div id="online-create-fields" hidden>
         <fieldset class="setup-stakes">
@@ -179,6 +180,17 @@
               <button class="raise-step" id="online-bots-more" type="button" aria-label="Zwiększ liczbę botów">+</button>
             </div>
             <output class="setup-buy-in-amount" id="online-bot-count" for="online-bots"></output>
+          </div>
+        </fieldset>
+        <fieldset class="setup-player-control">
+          <legend id="online-turn-label">Czas na ruch</legend>
+          <div class="setup-slider-row">
+            <div class="raise-stepper">
+              <button class="raise-step" id="online-time-less" type="button" aria-label="Skróć czas na ruch">−</button>
+              <input id="online-turn-time" type="range" min="15" max="90" step="5" value="30" aria-labelledby="online-turn-label">
+              <button class="raise-step" id="online-time-more" type="button" aria-label="Wydłuż czas na ruch">+</button>
+            </div>
+            <output class="setup-buy-in-amount" id="online-turn-seconds" for="online-turn-time"></output>
           </div>
         </fieldset>
       </div>
@@ -253,7 +265,7 @@
       <div class="profile-intro">
         <div class="profile-name-field">
           <label for="profile-name">Nazwa gracza</label>
-          <input id="profile-name" type="text" maxlength="24" placeholder="Podaj nick" autofocus>
+          <input id="profile-name" type="text" maxlength="10" placeholder="Podaj nick" autofocus>
         </div>
         <span class="seat-avatar avatar-portrait" id="profile-avatar-preview" role="img" aria-label="Podgląd awatara"></span>
       </div>

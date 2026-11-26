@@ -9,6 +9,7 @@ for (const name of ['cards', 'avatars', 'chips', 'bots', 'game']) {
 }
 
 export const { createGame, stakes, buyInFor, minPlayers, maxPlayers } = runInContext('pokerGame', context);
+export const { isPreset: isAvatarPreset } = runInContext('pokerAvatars', context);
 const { fullDeck } = runInContext('pokerCards', context);
 
 export function shuffleForOnline() {

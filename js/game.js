@@ -547,7 +547,7 @@ const pokerGame = (() => {
       const need = Math.max(0, state.currentBet - player.bet);
       const contributedBefore = player.contributed;
       let context;
-      if (actorIndex === 0) {
+      if (actorIndex === 0 || rules.onlineTable) {
         const callCost = Math.min(need, player.stack);
         context = {
           potBefore: pot(),
@@ -609,7 +609,8 @@ const pokerGame = (() => {
       player.acted = true;
       player.lastAction = { kind: player.allIn ? 'all-in' : wager ?? type, text: caption };
       addLog({ playerId: player.id, playerName: displayName(player), action: player.lastAction, analysis: actorIndex !== 0 ? choice.analysis : null });
-      onAction(type);
+      onAction(type, { playerId: player.id, street: state.street, type, chips: player.contributed - contributedBefore,
+        betTo: player.bet, toCall: need, context });
 
       if (contenders().length === 1) {
         awardWithoutShowdown();
@@ -780,7 +781,7 @@ const pokerGame = (() => {
               revealed
             };
           })
-        });
+        }, winnings);
       }
       onChange(state, { ...options, payouts: [...winnings].filter(([, amount]) => amount > 0) });
       continueTurn();

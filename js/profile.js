@@ -1,7 +1,7 @@
 'use strict';
 
 function pokerProfileNickname({ name, nameSelected }) {
-  const nickname = typeof name === 'string' ? name.trim().slice(0, 24) : '';
+  const nickname = typeof name === 'string' ? name.trim().slice(0, 10) : '';
   const hasName = nameSelected ?? (nickname !== 'Ty');
   return hasName ? nickname : '';
 }

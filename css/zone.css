@@ -776,6 +776,43 @@ dialog.zone-surface::after {
   text-align: center;
 }
 
+.online-active .seat-info {
+  padding-bottom: 13px;
+}
+
+.turn-clock {
+  position: absolute;
+  inset: auto calc(var(--avatar-overlap) + 5px) 1px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px;
+  color: #f7d692;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.turn-clock-track {
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ffffff26;
+}
+
+.turn-clock-track::after {
+  content: '';
+  display: block;
+  height: 3px;
+  border-radius: inherit;
+  background: currentColor;
+  transform: scaleX(var(--time-left, 1));
+  transform-origin: left;
+}
+
+.turn-clock-low {
+  color: #ff8d7e;
+}
+
 .tutorial-coach {
   padding: 9px 12px;
   border: 1px solid #3b6776;

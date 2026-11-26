@@ -1,6 +1,6 @@
 'use strict';
 
-function createPokerHistoryView(root, history) {
+function createPokerHistoryView(root, history, { online = false } = {}) {
   const { cardHTML, escapeHTML, streetNames } = pokerView;
   const money = pokerGame.formatAmount;
   const actionLabels = { check: 'Check', call: 'Call', raise: 'Podbicie do', fold: 'Pas' };
@@ -9,36 +9,36 @@ function createPokerHistoryView(root, history) {
   let entries = [];
   const rendered = new Map();
   const find = selector => root.querySelector(selector);
+  const prefix = online ? 'online-history' : 'history';
 
   root.innerHTML = `
     <div class="history-header">
-      <h2 id="hand-history-title">Historia</h2>
-      <div class="history-buttons">
+      <h2 id="${root.getAttribute('aria-labelledby')}">${online ? 'Historia rozdań online' : 'Historia'}</h2>
+      ${online ? '' : `<div class="history-buttons">
         <button class="reset" type="button" id="history-folder" hidden>Wybierz folder zapisu</button>
         <button class="reset" type="button" id="history-resume" hidden>Wznów zapis</button>
         <button class="reset" type="button" id="history-import">Importuj JSON</button>
         <input id="history-import-file" type="file" accept=".json,application/json" hidden>
         <button class="reset" type="button" id="history-download" disabled>Pobierz JSON</button>
-      </div>
+      </div>`}
     </div>
-    <p class="hint" id="history-status" role="status">Wczytywanie historii…</p>
-    <p class="hint" id="history-import-status" role="status" hidden></p>
-    <div id="history-entries"></div>
-    <button class="reset" type="button" id="history-more" hidden>Pokaż starsze rozdania</button>`;
+    ${online ? '' : '<p class="hint" id="history-status" role="status">Wczytywanie historii…</p><p class="hint" id="history-import-status" role="status" hidden></p>'}
+    <div id="${prefix}-entries" class="history-entries"></div>
+    <button class="reset history-more" type="button" id="${prefix}-more" hidden>Pokaż starsze rozdania</button>`;
 
-  const list = find('#history-entries');
-  const more = find('#history-more');
+  const list = find(`#${prefix}-entries`);
+  const more = find(`#${prefix}-more`);
   const folder = find('#history-folder');
   const resume = find('#history-resume');
   const download = find('#history-download');
   const importButton = find('#history-import');
   const importInput = find('#history-import-file');
   const importStatus = find('#history-import-status');
-  folder.addEventListener('click', history.chooseFolder);
-  resume.addEventListener('click', history.resume);
-  download.addEventListener('click', history.download);
-  importButton.addEventListener('click', () => importInput.click());
-  importInput.addEventListener('change', async () => {
+  folder?.addEventListener('click', history.chooseFolder);
+  resume?.addEventListener('click', history.resume);
+  download?.addEventListener('click', history.download);
+  importButton?.addEventListener('click', () => importInput.click());
+  importInput?.addEventListener('change', async () => {
     const file = importInput.files[0];
     if (!file) return;
     importButton.disabled = true;
@@ -109,7 +109,7 @@ function createPokerHistoryView(root, history) {
           <h3>Ocena rozegrania</h3>
           <div class="hand-review-content"></div>
         </section>
-        ${ending === 'fold' ? '<label class="history-reveal"><input type="checkbox"> Pokaż karty przeciwników</label>' : ''}
+        ${ending === 'fold' && !online ? '<label class="history-reveal"><input type="checkbox"> Pokaż karty przeciwników</label>' : ''}
         <div class="history-cards history-opponents" aria-label="Karty przeciwników">${showOpponents(opponents, positions, false)}</div>
       </div>`;
     const reveal = item.querySelector('input');
@@ -144,6 +144,7 @@ function createPokerHistoryView(root, history) {
       entries = nextEntries;
       renderEntries();
     }
+    if (online) return;
     folder.hidden = !canChooseFolder;
     resume.hidden = !directoryName || fileState === 'active' || fileState === 'off';
     folder.disabled = choosing;

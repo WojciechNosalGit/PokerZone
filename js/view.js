@@ -33,10 +33,9 @@ const pokerView = (() => {
     8: [0, 1, 2, 3, 4, 5, 6, 7]
   };
 
-  function applyProfile(root, state) {
-    const seat = root.querySelector('.hero-seat');
-    if (!seat || !state) return;
-    const [player] = state.players;
+  function applySeatProfile(root, player) {
+    const seat = root.querySelector(`[data-seat="${player.id}"]`);
+    if (!seat) return;
     pokerAvatars.setAvatar(seat.querySelector('.seat-avatar'), player.avatar);
     const label = player.name;
     const plate = seat.querySelector('.seat-name');
@@ -44,6 +43,10 @@ const pokerView = (() => {
     plate.dataset.tooltip = label;
     seat.setAttribute('aria-label', `Miejsce gracza ${label}`);
     seat.querySelector('.pocket-cards')?.setAttribute('aria-label', `Karty gracza ${label}`);
+  }
+
+  function applyProfile(root, state) {
+    if (state) applySeatProfile(root, state.players[0]);
   }
 
   function cardHTML(card) {
@@ -114,7 +117,7 @@ const pokerView = (() => {
     </li>`;
   }
 
-  function tableSeatHTML(player, state, interactiveProfile) {
+  function tableSeatHTML(player, state, interactiveProfile, clock) {
     const hero = player.id === 0;
     const participating = player.hand.length === 2;
     if (!hero && !participating && !player.waiting) return '';
@@ -155,6 +158,7 @@ const pokerView = (() => {
        </div>
        ${avatarAction ? actionLabelHTML({ kind: action.kind, text: avatarAction }, 'action-label avatar-action') : ''}
        ${avatarControl}
+       ${turn && clock ? '<div class="turn-clock" role="timer" aria-label="Czas na ruch"><span class="turn-clock-track" aria-hidden="true"></span><span class="turn-clock-label"></span></div>' : ''}
      </div>
      <div class="seat-position">${positionLabel}</div>
      <div class="seat-action">${allIn || avatarAction ? '' : actionLabelHTML(action)}</div>
@@ -308,10 +312,27 @@ const pokerView = (() => {
     let showAnalysis = false;
     let previousSessionId;
     let previousPhase;
+    let clockTimer;
     try {
       showAnalysis = localStorage.getItem(analysisPreference) === 'true';
     } catch {
       // Widoczność można zmienić także wtedy, gdy przeglądarka blokuje zapis preferencji.
+    }
+
+    function startClock(clock) {
+      const element = find('.turn-clock');
+      if (!element || !clock) return;
+      const label = element.querySelector('.turn-clock-label');
+      const refresh = () => {
+        const remaining = Math.max(0, clock.endsAt - performance.now());
+        const text = Math.ceil(remaining / 1000) + ' s';
+        if (label.textContent !== text) label.textContent = text;
+        element.style.setProperty('--time-left', remaining / (clock.seconds * 1000));
+        element.classList.toggle('turn-clock-low', remaining <= 5000);
+        if (!remaining) clearInterval(clockTimer);
+        return remaining;
+      };
+      if (refresh()) clockTimer = setInterval(refresh, 100);
     }
 
     function bindControls(turn, runningOut, tutorial, online) {
@@ -423,6 +444,7 @@ const pokerView = (() => {
     }
 
     return function render(state, { restored = false, tutorial, online } = {}) {
+      clearInterval(clockTimer);
       overviewResize?.disconnect();
       if (!state || state.phase === 'left') {
         outlineResize?.disconnect();
@@ -486,7 +508,7 @@ const pokerView = (() => {
      </div>
      <div class="board-row"><div class="board">${Array.from({ length: 5 }, (_, i) => cardHTML(state.board[i] || null)).join('')}</div><div class="deal-deck card back" aria-hidden="true"></div></div>
    </div>
-   ${state.players.map(seat => tableSeatHTML(seat, state, !tutorial && !online)).join('')}
+   ${state.players.map(seat => tableSeatHTML(seat, state, !tutorial, online?.clock)).join('')}
    <div class="table-corner table-status" role="status">${statusHTML(state, player, online)}</div>
    ${showHand ? handStatusHTML(player.hand, state.board) : ''}
    ${overview ? `<section class="tutorial-coach tutorial-overview" data-target="${overview.target}" aria-label="Oznaczenia stołu">
@@ -538,11 +560,12 @@ const pokerView = (() => {
         find('.action-grid').append(departingNextHand);
       }
       bindControls(turn, runningOut, tutorial, online);
+      startClock(online?.clock);
       find('.log').scrollTop = logScroll;
       if (finishingOverview) find('#call').focus();
       else if (focusedControl) find(focusedControl)?.focus({ preventScroll: true });
     };
   }
 
-  return { createView, applyProfile, cardHTML, chipPileHTML, escapeHTML, streetNames, seatPositions };
+  return { createView, applyProfile, applySeatProfile, cardHTML, chipPileHTML, escapeHTML, streetNames, seatPositions };
 })();
