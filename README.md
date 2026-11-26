@@ -13,13 +13,16 @@ npm --prefix server ci
 npm --prefix server start
 ```
 
-Otwórz `http://127.0.0.1:8080` w dwóch niezależnych kartach przeglądarki. Kod zaproszenia i adres serwera uzupełniają się z linku. Test protokołu można uruchomić przez `npm --prefix server test`.
+Otwórz `http://127.0.0.1:8080` w przeglądarce i utwórz stół. Otwórz link zaproszenia w drugiej karcie. Kod i adres serwera uzupełniają się z linku. Testy można uruchomić przez `npm --prefix server test`.
 
 ### Udostępnienie przez internet
 
-GitHub Pages może serwować stronę gry. Proces Node.js obsługujący stoły uruchom na hostingu obsługującym WebSocket i HTTPS. [Dokumentacja GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
+Gra online wymaga publicznego serwera PokerZone. GitHub Pages publikuje stronę, a osobny proces Node.js obsługuje stoły i połączenia WebSocket. [Dokumentacja GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
 
-- Ustaw `HOST=0.0.0.0` i port zgodny z ustawieniami hostingu. Proces korzysta ze zmiennej `PORT`.
-- Wdrożenie instaluje zależności poleceniem `npm --prefix server ci` i uruchamia `npm --prefix server start`. Endpoint do kontroli dostępności to `/health`, a do gry `/ws`.
-- Jeśli strona nadal korzysta z GitHub Pages, wpisz publiczny adres `wss://…/ws` w polu **Adres serwera** lub ustaw go w znaczniku `pokerzone-online-url` w `index.html`. Link zaproszenia zawiera ten adres.
-- Opcjonalna zmienna `POKERZONE_ORIGINS` przyjmuje rozdzielone przecinkami źródła stron mogących się łączyć, np. `https://wojciechnosalgit.github.io`. Uruchom jedną instancję procesu, aby obaj gracze trafiali do tego samego pokoju.
+1. W Render wybierz **New → Blueprint** i połącz repozytorium zawierające `render.yaml`. Konfiguracja uruchamia pojedynczy proces PokerZone na planie Free. [Wdrażanie Blueprintów](https://render.com/docs/infrastructure-as-code)
+2. Gdy wdrożenie będzie gotowe, otwórz adres HTTPS usługi Render. Strona gry dostępna pod tym adresem automatycznie używa serwera z tej samej domeny. Na bezpłatnym planie pierwsze otwarcie po okresie bezczynności może potrwać około minuty. [WebSocket na Render](https://render.com/docs/websocket) · [Usypianie na planie Free](https://render.com/docs/free#spinning-down-on-idle)
+3. Aby uruchamiać rozgrywkę ze strony GitHub Pages, wpisz publiczny adres serwera w polu **Adres serwera** albo wpisz `wss://…/ws` do `content` znacznika `pokerzone-online-url` w `index.html`. Zaproszenie przekazuje ten adres drugiemu graczowi wraz z kodem stołu.
+
+Na innym hostingu ustaw `HOST=0.0.0.0` i port przez zmienną `PORT`. Zainstaluj zależności poleceniem `npm --prefix server ci`, a proces uruchom przez `npm --prefix server start`. Kontrola dostępności działa pod `/health`, a gra pod `/ws`. Użyj jednej instancji procesu, bo pokoje są przechowywane w jej pamięci.
+
+Opcjonalna zmienna `POKERZONE_ORIGINS` przyjmuje rozdzielone przecinkami adresy stron, które mogą się łączyć. Jeśli używasz zarówno GitHub Pages, jak i strony z serwera gry, wpisz obie domeny z prefiksem `https://`.

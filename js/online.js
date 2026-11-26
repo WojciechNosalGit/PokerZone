@@ -7,15 +7,15 @@ function createPokerOnline(dialog, { enter, update, leave }) {
   const invite = find('#online-invitation');
   const link = find('#online-link');
   const serverField = find('#online-server');
+  const serverDetails = find('#online-server-details');
   const roomField = find('#online-room');
   const name = find('#online-name');
   const stakesField = find('#online-stakes');
   const roomPattern = /^[A-F0-9]{10}$/;
   const chipValues = new Set([1, 5, 10, 25, 100, 500, 1000]);
-  const meta = document.querySelector('meta[name="pokerzone-online-url"]');
-  const ownServer = /^https?:$/.test(location.protocol) && !location.hostname.endsWith('.github.io')
-    ? location.origin + '/ws' : '';
-  const defaultServer = meta.content.trim() || ownServer;
+  const configuredServer = document.querySelector('meta[name="pokerzone-online-url"]')?.content.trim() ?? '';
+  const defaultServer = configuredServer === '/ws' ? location.origin + configuredServer : configuredServer;
+  const missingServer = 'Podaj adres działającego serwera PokerZone. Na stronie HTTPS użyj https:// lub wss://.';
   for (const { smallBlind, bigBlind } of pokerGame.stakes) {
     stakesField.add(new Option(`NL ${smallBlind}/${bigBlind}`, String(bigBlind)));
   }
@@ -58,6 +58,15 @@ function createPokerOnline(dialog, { enter, update, leave }) {
 
   function setConnecting(connecting) {
     for (const button of form.querySelectorAll('button[type="submit"]')) button.disabled = connecting;
+  }
+
+  function failConnection(connection, message, { addressError = true } = {}) {
+    clearTimeout(connectionTimeout);
+    socket = null;
+    connection?.close();
+    setConnecting(false);
+    if (addressError) serverDetails.open = true;
+    showNotice(message);
   }
 
   function normalizeServer(value) {
@@ -151,11 +160,25 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     }
   };
 
-  function receive(message, request) {
-    if (!message || typeof message.type !== 'string') throw new Error('Invalid message');
-    if (message.type === 'seat') {
+  function readMessage(data) {
+    const message = JSON.parse(data);
+    if (message?.type === 'seat') {
       if (![0, 1].includes(message.seat) || typeof message.room !== 'string' || !roomPattern.test(message.room)
         || typeof message.token !== 'string') throw new Error('Invalid seat');
+    } else if (message?.type === 'state' && membership) {
+      if (!whole(message.revision) || typeof message.connected !== 'boolean'
+        || !Array.isArray(message.payouts) || !message.payouts.every(payout => Array.isArray(payout)
+          && [0, 1].includes(payout[0]) && whole(payout[1]))
+        || (message.state !== null && (!message.state || !validSnapshot(message.state)))) throw new Error('Invalid state');
+    } else if (!(message?.type === 'error' || (message?.type === 'closed' && membership))
+      || typeof message.message !== 'string') {
+      throw new Error('Unrecognized PokerZone message');
+    }
+    return message;
+  }
+
+  function receive(message, request) {
+    if (message.type === 'seat') {
       clearTimeout(connectionTimeout);
       const firstSeat = !membership;
       membership = message;
@@ -177,21 +200,10 @@ function createPokerOnline(dialog, { enter, update, leave }) {
       }
       if (membership) draw(message.message, { restored: true });
       else {
-        clearTimeout(connectionTimeout);
-        const failed = socket;
-        socket = null;
-        failed?.close();
-        setConnecting(false);
-        showNotice(message.message);
+        failConnection(socket, message.message, { addressError: false });
       }
       return;
     }
-    if (message.type !== 'state' || !membership) return;
-    if (!whole(message.revision) || typeof message.connected !== 'boolean'
-      || !Array.isArray(message.payouts) || !message.payouts.every(payout => Array.isArray(payout)
-        && [0, 1].includes(payout[0]) && whole(payout[1]))
-      || (message.state !== null && (!message.state || !validSnapshot(message.state)))) throw new Error('Invalid state');
-
     connected = message.connected;
     revision = message.revision;
     awaiting = false;
@@ -215,11 +227,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     try { connection = new WebSocket(endpoint); } catch {
       const warning = 'Przeglądarka nie może otworzyć połączenia pod tym adresem.';
       if (membership) stop(warning, false);
-      else {
-        setConnecting(false);
-        find('#online-server-details').open = true;
-        showNotice(warning);
-      }
+      else failConnection(null, warning);
       return;
     }
     socket = connection;
@@ -229,16 +237,16 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     });
     connection.addEventListener('message', event => {
       if (socket !== connection) return;
-      try { receive(JSON.parse(event.data), request); } catch {
-        const warning = 'Serwer przesłał nieprawidłowe dane stołu.';
-        if (membership) stop(warning, false);
-        else {
-          socket = null;
-          clearTimeout(connectionTimeout);
-          connection.close();
-          setConnecting(false);
-          showNotice(warning);
-        }
+      let message;
+      try { message = readMessage(event.data); } catch {
+        if (membership) stop('Serwer przesłał nieprawidłowe dane stołu.', false);
+        else failConnection(connection, 'Pod tym adresem nie odpowiada serwer PokerZone. Sprawdź jego adres.');
+        return;
+      }
+      try { receive(message, request); } catch (error) {
+        console.error('PokerZone online failed to update the game view:', error);
+        if (membership) stop('Nie udało się wyświetlić stołu w przeglądarce.', false);
+      else failConnection(connection, 'Nie udało się otworzyć stołu w przeglądarce.', { addressError: false });
       }
     });
     connection.addEventListener('close', event => {
@@ -247,9 +255,7 @@ function createPokerOnline(dialog, { enter, update, leave }) {
       socket = null;
       awaiting = connected = false;
       if (!membership) {
-        setConnecting(false);
-        find('#online-server-details').open = true;
-        showNotice('Nie udało się połączyć z serwerem gry. Sprawdź jego adres.');
+        failConnection(null, 'Nie udało się połączyć z serwerem PokerZone. Sprawdź, czy jest uruchomiony i czy adres jest poprawny.');
         return;
       }
       if (event.code === 4001) { stop('Grasz z innej karty przeglądarki.', false); return; }
@@ -271,10 +277,10 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     name.value = defaultName;
     roomField.value = invitedRoom || '';
     serverField.value = invitedServer || serverField.value || defaultServer;
-    find('#online-server-details').open = !normalizeServer(serverField.value);
-    showNotice('');
-    dialog.showModal();
     endpoint = normalizeServer(serverField.value);
+    serverDetails.open = !endpoint;
+    showNotice(endpoint ? '' : missingServer);
+    dialog.showModal();
     const token = endpoint && invitedRoom && storedSeat(invitedRoom);
     if (token) {
       setConnecting(true);
@@ -288,14 +294,14 @@ function createPokerOnline(dialog, { enter, update, leave }) {
     if (socket) return;
     endpoint = normalizeServer(serverField.value.trim());
     if (!endpoint) {
-      find('#online-server-details').open = true;
-      showNotice('Podaj adres serwera gry. Na stronie HTTPS użyj adresu wss://.');
+      serverDetails.open = true;
+      showNotice(missingServer);
       serverField.focus();
       return;
     }
     const type = event.submitter?.value ?? (roomField.value ? 'join' : 'create');
     const room = roomField.value.trim().toUpperCase();
-    if (type === 'join' && !roomPattern.test(room)) { showNotice('Wpisz kod z zaproszenia.'); roomField.focus(); return; }
+    if (type === 'join' && !roomPattern.test(room)) { showNotice('Wpisz 10-znakowy kod z zaproszenia albo otwórz link zaproszenia.'); roomField.focus(); return; }
     setConnecting(true);
     showNotice('Łączymy się z serwerem…');
     connect({ type, name: name.value.trim(), room, bigBlind: Number(stakesField.value) });

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: pokerzone-online
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm --prefix server ci
+    startCommand: npm --prefix server start
+    healthCheckPath: /health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0

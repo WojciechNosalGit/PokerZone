@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -29,6 +29,14 @@ async function serveSite(request, response) {
   if (!allowed || !type) { response.writeHead(404).end(); return; }
 
   const file = new URL(`..${pathname}`, import.meta.url);
+  if (pathname === '/index.html') {
+    const html = await readFile(file, 'utf8').catch(() => null);
+    if (html === null) { response.writeHead(404).end(); return; }
+    const page = html.replace('name="pokerzone-online-url" content=""', 'name="pokerzone-online-url" content="/ws"');
+    response.writeHead(200, { 'Content-Type': type, 'Content-Length': Buffer.byteLength(page), 'X-Content-Type-Options': 'nosniff' });
+    response.end(request.method === 'HEAD' ? undefined : page);
+    return;
+  }
   const info = await stat(file).catch(() => null);
   if (!info?.isFile()) { response.writeHead(404).end(); return; }
   response.writeHead(200, { 'Content-Type': type, 'Content-Length': info.size, 'X-Content-Type-Options': 'nosniff' });

@@ -38,6 +38,10 @@ test('private table masks cards, enforces turns, reconnects seats and pays out',
   const http = `http://127.0.0.1:${server.address().port}`;
   assert.equal((await fetch(`${http}/health`)).status, 200);
   assert.equal((await fetch(`${http}/server/rooms.mjs`)).status, 404);
+  const page = await fetch(http);
+  const html = await page.text();
+  assert.match(html, /name="pokerzone-online-url" content="\/ws"/);
+  assert.equal(Number((await fetch(http, { method: 'HEAD' })).headers.get('content-length')), Buffer.byteLength(html));
   const address = http.replace('http:', 'ws:') + '/ws';
 
   const host = await player(address);
