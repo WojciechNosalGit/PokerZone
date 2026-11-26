@@ -35,8 +35,9 @@ function viewForSeat(state, seat, room) {
   if (!state) return null;
   const { sessionId, handNo, phase, street, dealing, runoutFrom, currentBet, lastRaise, smallBlind, bigBlind,
     board, potChips, summary } = state;
-  const seatId = id => relativeSeat(id, seat, state.players.length);
-  const players = [...state.players.slice(seat), ...state.players.slice(0, seat)].map(player => {
+  const seatId = id => seat === null ? id : relativeSeat(id, seat, state.players.length);
+  const ordered = seat === null ? state.players : [...state.players.slice(seat), ...state.players.slice(0, seat)];
+  const players = ordered.map(player => {
     const { stack, bet, betChips, contributed, folded, allIn, canRaise, position, lastAction } = player;
     const waiting = Boolean(room.seats[player.id]?.waiting);
     const canSee = player.id === seat || (!folded && (runoutFrom || street === 'showdown'));
@@ -47,7 +48,7 @@ function viewForSeat(state, seat, room) {
       hand: canSee ? player.hand : player.hand.map(() => null)
     };
   });
-  const logs = state.logs.map(({ kind, text, action, playerId, playerName }) => ({
+  const logs = seat === null ? [] : state.logs.map(({ kind, text, action, playerId, playerName }) => ({
     kind, text, action, playerName, playerId: playerId === undefined ? undefined : seatId(playerId)
   }));
   return { sessionId, handNo, phase, street, dealing, runoutFrom, currentBet, lastRaise, smallBlind, bigBlind,
@@ -58,6 +59,7 @@ export function attachRooms(server, { origins = [] } = {}) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 4096, perMessageDeflate: false });
   const rooms = new Map();
   const bindings = new WeakMap();
+  const previews = new WeakMap();
   const connected = player => player?.socket?.readyState === WebSocket.OPEN;
   const allPresent = room => room.seats.every(player => !player || player.waiting || connected(player));
   const findRoom = code => typeof code === 'string' && roomPattern.test(code) ? rooms.get(code) : undefined;
@@ -72,9 +74,22 @@ export function attachRooms(server, { origins = [] } = {}) {
     send(socket, { type: 'error', message, code });
   }
 
-  function showSeats(room, socket) {
-    send(socket, { type: 'seats', room: room.code, bigBlind: room.bigBlind,
-      spots: room.seats.map((player, id) => room.botSeats.has(id) ? 'bot' : player ? 'taken' : 'free') });
+  function seatOffer(room) {
+    const state = viewForSeat(room.game?.getState(), null, room);
+    return { type: 'seats', room: room.code, bigBlind: room.bigBlind, state,
+      spots: room.seats.map((player, id) => room.botSeats.has(id) ? 'bot' : player ? 'taken' : 'free'),
+      occupants: state ? null : room.seats.map(player => player && { name: player.name, avatar: player.avatar }) };
+  }
+
+  function stopPreview(socket) {
+    previews.get(socket)?.viewers.delete(socket);
+    previews.delete(socket);
+  }
+
+  function broadcastPreview(room) {
+    if (!room.viewers.size) return;
+    const offer = seatOffer(room);
+    for (const socket of room.viewers) send(socket, offer);
   }
 
   function clearClock(room) {
@@ -139,6 +154,7 @@ export function attachRooms(server, { origins = [] } = {}) {
         payouts: payouts.map(([id, amount]) => [relativeSeat(id, seat, playerCount), amount])
       });
     });
+    broadcastPreview(room);
   }
 
   function startMatch(room) {
@@ -203,6 +219,7 @@ export function attachRooms(server, { origins = [] } = {}) {
   }
 
   function attachSeat(room, seat, socket, version) {
+    stopPreview(socket);
     const player = room.seats[seat];
     const previous = player.socket;
     player.socket = socket;
@@ -233,6 +250,10 @@ export function attachRooms(server, { origins = [] } = {}) {
     rooms.delete(room.code);
     clearClock(room);
     room.game?.resetGame();
+    for (const socket of room.viewers) {
+      error(socket, reason);
+      stopPreview(socket);
+    }
     for (const player of room.seats) {
       if (!player?.socket) continue;
       bindings.delete(player.socket);
@@ -247,9 +268,14 @@ export function attachRooms(server, { origins = [] } = {}) {
 
   function seatRequest(socket, message) {
     if (message.type === 'inspect') {
+      stopPreview(socket);
       const room = findRoom(message.room);
-      if (room) showSeats(room, socket);
-      else error(socket, 'Nie ma takiego stołu. Sprawdź kod zaproszenia.');
+      if (!room) { error(socket, 'Nie ma takiego stołu. Sprawdź kod zaproszenia.'); return; }
+      if (message.live === true) {
+        previews.set(socket, room);
+        room.viewers.add(socket);
+      }
+      send(socket, seatOffer(room));
       return;
     }
     if (message.type === 'create' || message.type === 'join') {
@@ -280,7 +306,7 @@ export function attachRooms(server, { origins = [] } = {}) {
         seats[0] = newPlayer(name, avatar);
         const minimumToStart = message.botCount === undefined ? total : minPlayers;
         const room = { code, bigBlind: message.bigBlind, seats, botSeats, humanCount, minimumToStart, turnSeconds,
-          revision: 0, game: null, clock: null, incompleteSince: Date.now() };
+          viewers: new Set(), revision: 0, game: null, clock: null, incompleteSince: Date.now() };
         rooms.set(code, room);
         attachSeat(room, 0, socket, message.version);
       } else {
@@ -291,7 +317,7 @@ export function attachRooms(server, { origins = [] } = {}) {
         if (!Number.isInteger(seat) || !free(seat)) {
           const open = room.seats.some((_, id) => free(id));
           error(socket, open ? 'To miejsce jest już zajęte. Wybierz inne.' : 'Ten stół jest już pełny.', 'seat');
-          showSeats(room, socket);
+          send(socket, seatOffer(room));
           return;
         }
         room.seats[seat] = newPlayer(name, avatar, Boolean(room.game));
@@ -330,6 +356,7 @@ export function attachRooms(server, { origins = [] } = {}) {
       Object.assign(member, { name, avatar });
       if (state && !member.waiting) Object.assign(state.players[seat], { name, avatar });
       sendSeatEvent(room, seat, { type: 'profile', name, avatar });
+      broadcastPreview(room);
       return;
     }
     if (message.type === 'chat') {
@@ -372,6 +399,7 @@ export function attachRooms(server, { origins = [] } = {}) {
     socket.on('pong', () => { socket.alive = true; });
     socket.on('error', () => socket.terminate());
     socket.on('close', () => {
+      stopPreview(socket);
       const binding = bindings.get(socket);
       if (!binding || !rooms.has(binding.room.code)) return;
       const { room, seat } = binding;

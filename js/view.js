@@ -32,6 +32,7 @@ const pokerView = (() => {
     7: [0, 1, 2, 3, 5, 6, 7],
     8: [0, 1, 2, 3, 4, 5, 6, 7]
   };
+  const seatClass = (count, id) => seatClasses[seatPositions[count][id]];
 
   function applySeatProfile(root, player) {
     const seat = root.querySelector(`[data-seat="${player.id}"]`);
@@ -61,15 +62,16 @@ const pokerView = (() => {
     </div>`;
   }
 
-  function pocketCardsHTML(player, state) {
+  function pocketCardsHTML(player, state, preview) {
     if (!player.hand.length) return '<div class="pocket-space" aria-hidden="true"></div>';
-    const showdown = player.id !== 0 && (state.runoutFrom || state.street === 'showdown') && !player.folded;
-    const reveal = player.id === 0 || showdown;
+    const ownSeat = !preview && player.id === 0;
+    const showdown = !ownSeat && (state.runoutFrom || state.street === 'showdown') && !player.folded;
+    const reveal = ownSeat || showdown;
     const cards = player.hand.map(card => showdown
       ? `<div class="showdown-card">${cardHTML(card)}<div class="showdown-back" aria-hidden="true">${cardHTML('back')}</div></div>`
       : cardHTML(reveal ? card : 'back')).join('');
     const appearance = showdown ? ' pocket-showdown' : reveal ? '' : ' pocket-covered';
-    const hidden = player.id !== 0 && player.folded ? ' aria-hidden="true"' : '';
+    const hidden = !ownSeat && player.folded ? ' aria-hidden="true"' : '';
     return `<div class="cards pocket-cards${appearance}" role="group" aria-label="Karty gracza ${escapeHTML(player.name)}"${hidden}>${cards}</div>`;
   }
 
@@ -117,10 +119,10 @@ const pokerView = (() => {
     </li>`;
   }
 
-  function tableSeatHTML(player, state, interactiveProfile, clock) {
+  function tableSeatHTML(player, state, interactiveProfile, clock, preview = false) {
     const hero = player.id === 0;
     const participating = player.hand.length === 2;
-    if (!hero && !participating && !player.waiting) return '';
+    if (!preview && !hero && !participating && !player.waiting) return '';
 
     const amount = player.bet;
     const allIn = participating && !player.folded && player.allIn;
@@ -139,7 +141,6 @@ const pokerView = (() => {
        </div>`
       : portrait + ring;
     const seatStatus = player.folded ? 'spot-folded' : 'spot-active';
-    const position = seatPositions[state.players.length][player.id];
     const label = escapeHTML(player.name);
     const positionLabel = player.position
       ? `<abbr tabindex="0" data-tooltip="${escapeHTML(positionNames[player.position] ?? player.position)}">${escapeHTML(player.position)}</abbr>`
@@ -151,9 +152,9 @@ const pokerView = (() => {
       ? `<div class="spot-chips${allIn ? ' all-in-wager' : ''}" role="group" aria-label="Stawka w obecnej rundzie: ${money(amount)} żetonów">${chipScatterHTML(player.betChips)}<strong>${money(amount)}</strong>${allInMarker}</div>`
       : allInMarker;
     const dealer = player.id === state.dealer;
-    return `<section class="table-seat ${seatClasses[position]}" data-seat="${player.id}" aria-label="Miejsce gracza ${label}">
+    return `<section class="table-seat ${seatClass(state.players.length, player.id)}" data-seat="${player.id}" aria-label="Miejsce gracza ${label}">
    <div class="bet-spot ${seatStatus} ${amount > 0 ? 'has-bet' : ''} ${turn ? 'turn' : ''}">
-     ${pocketCardsHTML(player, state)}
+     ${pocketCardsHTML(player, state, preview)}
      <div class="seat-info">
        <div class="seat-details">
          <div class="seat-name" data-tooltip="${label}">${label}</div>
@@ -168,6 +169,70 @@ const pokerView = (() => {
    ${wager ? `<div class="seat-wager">${wager}</div>` : ''}
    ${dealer ? '<div class="seat-role-markers"><span class="position-badge pos-d" tabindex="0" data-tooltip="Dealer / button">D</span></div>' : ''}
   </section>`;
+  }
+
+  function feltHTML(state, { pot, seats, extra = '', handNumber = state.handNo, tutorial, runningOut = false }) {
+    const playersInGame = state.players.filter(seat => seat.stack > 0
+      || (state.phase === 'betting' && seat.hand.length === 2 && seat.allIn)).length;
+    return `<div class="felt" data-seats="${state.players.length}"${tutorial ? ' data-tutorial' : ''}${runningOut ? ' data-runout' : ''} role="group" aria-label="Stół pokerowy">
+   <div class="table-corner table-round">
+     ${handNumber ? `<span class="table-hand-cards" role="img" aria-label="Rozdanie ${handNumber}"><strong aria-hidden="true">${money(handNumber)}</strong></span>` : ''}
+     <span class="table-stakes">NL ${state.smallBlind}/${state.bigBlind}</span>
+   </div>
+   <div class="table-corner table-players" role="img" aria-label="Gracze w grze: ${playersInGame}">
+     <span class="table-player-icon" aria-hidden="true"></span><strong aria-hidden="true">${playersInGame}</strong>
+   </div>
+   <div class="felt-center">
+     <div class="board-meta">
+       ${centerPotHTML(pot, state.potChips, state.phase)}
+       <div class="street">${streetNames[state.street] || ''}</div>
+     </div>
+     <div class="board-row"><div class="board">${Array.from({ length: 5 }, (_, i) => cardHTML(state.board[i] || null)).join('')}</div><div class="deal-deck card back" aria-hidden="true"></div></div>
+   </div>
+   ${seats}${extra}
+ </div>`;
+  }
+
+  function renderSeatPicker(root, offer, chooseSeat, busy) {
+    const { bigBlind, occupants, spots } = offer;
+    const state = offer.state ?? { smallBlind: bigBlind / 2, bigBlind, phase: 'idle', board: [], potChips: [],
+      players: spots.map((spot, id) => ({ id, name: occupants?.[id]?.name ?? (spot === 'bot' ? 'Bot' : 'Gracz'),
+        avatar: occupants?.[id]?.avatar, stack: spot === 'free' ? 0 : pokerGame.buyInFor(bigBlind), bet: 0, contributed: 0, hand: [] })) };
+    const seats = state.players.map((player, id) => spots[id] === 'free'
+      ? `<section class="table-seat ${seatClass(spots.length, id)} seat-available" data-seat="${id}">
+           <div class="bet-spot"><div class="pocket-space"></div>
+             <button class="seat-info available-seat-button" type="button" data-online-seat="${id}" aria-label="Usiądź na miejscu ${id + 1}" ${busy ? 'disabled' : ''}>
+               Usiądź<span class="seat-avatar" aria-hidden="true"></span>
+             </button>
+             <div class="seat-position" aria-hidden="true"></div><div class="seat-action" aria-hidden="true"></div>
+           </div>
+         </section>`
+      : tableSeatHTML(player, state, false, null, true)).join('');
+    const pot = state.players.reduce((total, player) => total + player.contributed, 0);
+    const markup = feltHTML(state, { pot, seats });
+    const stage = root.querySelector('.felt[data-seat-selection]');
+    const focused = document.activeElement?.closest('[data-online-seat]');
+    if (stage) {
+      const template = document.createElement('template');
+      template.innerHTML = markup;
+      [...template.content.firstElementChild.children].forEach((replacement, index) => {
+        const current = stage.children[index];
+        const button = current.querySelector('[data-online-seat]');
+        if (button && replacement.querySelector('[data-online-seat]')) button.disabled = busy;
+        else if (current.outerHTML !== replacement.outerHTML) current.replaceWith(replacement);
+      });
+    } else {
+      root.innerHTML = `<div class="layout"><div class="table-panel">${markup}</div></div>`;
+      const table = root.querySelector('.felt');
+      table.dataset.seatSelection = '';
+      table.addEventListener('click', event => {
+        const button = event.target.closest('[data-online-seat]:enabled');
+        if (button) chooseSeat(Number(button.dataset.onlineSeat));
+      });
+    }
+    if (!stage || (focused && !focused.isConnected)) {
+      root.querySelector('[data-online-seat]:enabled')?.focus({ preventScroll: true });
+    }
   }
 
   function centerPotHTML(amount, chips, phase) {
@@ -465,8 +530,6 @@ const pokerView = (() => {
       const runningOut = Boolean(state.runoutFrom);
       const finished = state.phase === 'finished';
       const showHand = turn || finished || state.phase === 'gameover';
-      const playersInGame = state.players.filter(seat => seat.stack > 0
-        || (state.phase === 'betting' && seat.hand.length === 2 && seat.allIn)).length;
       const outgoing = !restored && sameSession && previousPhase === 'betting' && (finished || state.phase === 'gameover')
         ? {
           amount: find('#raiseTo')?.value, call: find('#call')?.textContent, raise: find('#raise')?.textContent,
@@ -493,31 +556,17 @@ const pokerView = (() => {
       const finishingOverview = tutorial && !overview && find('.tutorial-overview');
       const percent = count => stats.hands ? Math.round(count / stats.hands * 100) + '%' : '—';
       outlineResize?.disconnect();
-      root.innerHTML = `<div class="layout"><div class="table-panel">
- <div class="felt" data-seats="${state.players.length}"${tutorial ? ' data-tutorial' : ''}${runningOut ? ' data-runout' : ''} role="group" aria-label="Stół pokerowy">
-   <div class="table-corner table-round">
-     <span class="table-hand-cards" role="img" aria-label="Rozdanie ${handNumber}"><strong aria-hidden="true">${money(handNumber)}</strong></span>
-     <span class="table-stakes">NL ${state.smallBlind}/${state.bigBlind}</span>
-   </div>
-   <div class="table-corner table-players" role="img" aria-label="Gracze w grze: ${playersInGame}">
-     <span class="table-player-icon" aria-hidden="true"></span><strong aria-hidden="true">${playersInGame}</strong>
-   </div>
-   <div class="felt-center">
-     <div class="board-meta">
-       ${centerPotHTML(pot, state.potChips, state.phase)}
-       <div class="street">${streetNames[state.street] || ''}</div>
-     </div>
-     <div class="board-row"><div class="board">${Array.from({ length: 5 }, (_, i) => cardHTML(state.board[i] || null)).join('')}</div><div class="deal-deck card back" aria-hidden="true"></div></div>
-   </div>
-   ${state.players.map(seat => tableSeatHTML(seat, state, !tutorial, online?.clock)).join('')}
+      const seats = state.players.map(seat => tableSeatHTML(seat, state, !tutorial, online?.clock)).join('');
+      const extra = `
    <div class="table-corner table-status" role="status">${statusHTML(state, player, online)}</div>
    ${showHand ? handStatusHTML(player.hand, state.board) : ''}
    ${overview ? `<section class="tutorial-coach tutorial-overview" data-target="${overview.target}" aria-label="Oznaczenia stołu">
      <div><h2>${escapeHTML(overview.title)}</h2><span>Krok ${overview.step} z ${overview.total}</span></div>
      <p>${escapeHTML(overview.prompt)}</p>
      <button class="zone-art-button" id="tutorial-overview-next" type="button">${overview.step === overview.total ? 'Zagraj rozdanie' : 'Dalej'}</button>
-   </section>` : ''}
- </div>
+   </section>` : ''}`;
+      root.innerHTML = `<div class="layout"><div class="table-panel">
+ ${feltHTML(state, { pot, seats, extra, handNumber, tutorial, runningOut })}
  ${tutorial && !overview ? `<section class="tutorial-coach"${tutorial.practice ? '' : ' data-guided'} aria-label="Samouczek">
      <div><h2>${escapeHTML(tutorial.title)}</h2><span>Rozdanie ${tutorial.number}${tutorial.total ? ` z ${tutorial.total}` : ''}</span></div>
      <p>${escapeHTML(tutorial.prompt)}</p>
@@ -568,5 +617,5 @@ const pokerView = (() => {
     };
   }
 
-  return { createView, applyProfile, applySeatProfile, cardHTML, chipPileHTML, escapeHTML, streetNames, seatPositions };
+  return { createView, renderSeatPicker, applyProfile, applySeatProfile, cardHTML, chipPileHTML, escapeHTML, streetNames };
 })();

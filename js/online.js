@@ -1,6 +1,6 @@
 'use strict';
 
-function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, onHistory }) {
+function createPokerOnline(dialog, { enter, preview, update, leave, onProfile, onChat, onHistory }) {
   const find = selector => dialog.querySelector(selector);
   const options = find('#online-options');
   const title = find('#online-title');
@@ -14,9 +14,6 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
   const enterTable = find('#enter-online-table');
   const code = find('#online-code');
   const waiting = find('#online-waiting');
-  const seatPicker = find('#online-seat-picker');
-  const seatMap = find('#online-seat-map');
-  const seatsBack = find('#online-seats-back');
   const roomField = find('#online-room');
   const name = find('#online-name');
   const playersField = find('#online-players');
@@ -61,6 +58,9 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
   let queuedFold;
   let clock;
   let pendingProfile;
+  let offer;
+  let choosingSeat = false;
+  let seatNotice = '';
   const hands = new Map();
 
   const whole = value => Number.isSafeInteger(value) && value >= 0;
@@ -83,7 +83,7 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
         && (other.revealed ? hand.ending === 'showdown' && cards(other.cards, [2]) : other.cards === null));
   }
 
-  function validSnapshot(snapshot, count) {
+  function validSnapshot(snapshot, count, ownSeat = 0) {
     return typeof snapshot.sessionId === 'string' && ['betting', 'finished', 'gameover'].includes(snapshot.phase)
       && ['preflop', 'flop', 'turn', 'river', 'showdown'].includes(snapshot.street)
       && typeof snapshot.dealing === 'boolean' && typeof snapshot.summary === 'string'
@@ -95,7 +95,7 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
       && Array.isArray(snapshot.players) && snapshot.players.length === count && snapshot.players.every((player, index) =>
         player?.id === index && typeof player.name === 'string' && [player.stack, player.contributed, player.bet].every(whole)
         && validChips(player.betChips) && Array.isArray(player.hand) && [0, 2].includes(player.hand.length)
-        && player.hand.every(card => (index !== 0 && card === null) || validCard(card)));
+        && player.hand.every(card => (index !== ownSeat && card === null) || validCard(card)));
   }
 
   function showNotice(message) {
@@ -104,7 +104,7 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
   }
 
   function setConnecting(connecting) {
-    submit.disabled = back.disabled = seatsBack.disabled = seatMap.inert = connecting;
+    submit.disabled = back.disabled = connecting;
   }
 
   function selectStakes(bigBlind) {
@@ -129,43 +129,29 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
     options.hidden = Boolean(step);
     form.hidden = !step;
     invite.hidden = true;
-    seatPicker.hidden = true;
     createFields.hidden = step !== 'create';
     joinFields.hidden = step !== 'join';
     submit.textContent = step === 'create' ? 'Utwórz stół' : 'Wybierz miejsce';
     showNotice(endpoint ? '' : unavailable);
   }
 
-  function showSeats({ room, bigBlind, spots }) {
+  function showSeats(message) {
+    if (choosingSeat) return;
     clearTimeout(connectionTimeout);
     setConnecting(false);
-    form.hidden = true;
-    seatPicker.hidden = false;
-    title.textContent = 'Wybierz miejsce';
-    const tableStakes = document.createElement('span');
-    tableStakes.className = 'table-stakes';
-    tableStakes.textContent = `NL ${bigBlind / 2}/${bigBlind}`;
-    const positions = pokerView.seatPositions[spots.length];
-    const seats = spots.map((spot, id) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = `zone-art-button${spot === 'free' ? ' zone-gold-button' : ''}`;
-      button.dataset.position = positions[id];
-      button.dataset.onlineSeat = id;
-      button.disabled = spot !== 'free';
-      button.textContent = { free: 'Usiądź', taken: 'Zajęte', bot: 'Bot' }[spot];
-      button.setAttribute('aria-label', `Miejsce ${id + 1}. ${button.textContent}`);
-      button.addEventListener('click', () => {
-        if (socket?.readyState !== WebSocket.OPEN) return;
-        setConnecting(true);
-        showNotice('Zajmujemy miejsce…');
-        socket.send(JSON.stringify({ type: 'join', room, seat: id, name: name.value.trim(), avatar, version }));
-        connectionTimeout = setTimeout(() => failConnection(socket, connectionFailed), 10_000);
-      });
-      return button;
-    });
-    seatMap.replaceChildren(tableStakes, ...seats);
-    seatMap.querySelector('button:enabled')?.focus();
+    offer = message;
+    if (dialog.open) dialog.close();
+    const status = message.spots.includes('free') ? seatNotice || 'Wybierz wolne miejsce.' : 'Ten stół jest już pełny.';
+    preview(offer, chooseSeat, false, status);
+  }
+
+  function chooseSeat(seat) {
+    if (!offer || choosingSeat || offer.spots[seat] !== 'free' || socket?.readyState !== WebSocket.OPEN) return;
+    choosingSeat = true;
+    seatNotice = '';
+    preview(offer, chooseSeat, true, 'Zajmujemy miejsce…');
+    socket.send(JSON.stringify({ type: 'join', room: offer.room, seat, name: name.value.trim(), avatar, version }));
+    connectionTimeout = setTimeout(() => failConnection(socket, connectionFailed), 10_000);
   }
 
   function failConnection(connection, message) {
@@ -173,6 +159,15 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
     socket = null;
     connection?.close();
     setConnecting(false);
+    if (offer) {
+      offer = undefined;
+      choosingSeat = false;
+      seatNotice = '';
+      leave('');
+      showStep('join');
+      dialog.showModal();
+      roomField.focus();
+    }
     showNotice(message);
   }
 
@@ -217,7 +212,11 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
     const oldSocket = socket;
     socket = null;
     const oldMembership = membership;
+    const hadOffer = Boolean(offer);
     membership = null;
+    offer = undefined;
+    choosingSeat = false;
+    seatNotice = '';
     state = null;
     clock = pendingProfile = undefined;
     hands.clear();
@@ -237,8 +236,8 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
       url.searchParams.delete('server');
       history.replaceState(null, '', url);
       onHistory([]);
-      leave(message);
     }
+    if (oldMembership || hadOffer) leave(message);
   }
 
   function sendMemberMessage(type, fields) {
@@ -289,8 +288,12 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
       if (!validSeat(message.seat, maxPlayers) || typeof message.room !== 'string' || !roomPattern.test(message.room)
         || typeof message.token !== 'string') throw new Error('Invalid seat');
     } else if (message?.type === 'seats' && !membership) {
-      if (!roomPattern.test(message.room) || !stakeButtons.has(message.bigBlind) || !Array.isArray(message.spots)
-        || !validCount(message.spots.length) || !message.spots.every(spot => ['free', 'bot', 'taken'].includes(spot))) {
+      const { spots, state: publicState, occupants } = message;
+      if (!roomPattern.test(message.room) || !stakeButtons.has(message.bigBlind) || !Array.isArray(spots)
+        || !validCount(spots.length) || !spots.every(spot => ['free', 'bot', 'taken'].includes(spot))
+        || (publicState != null && !validSnapshot(publicState, spots.length, null))
+        || (occupants != null && (!Array.isArray(occupants) || occupants.length !== spots.length
+          || !occupants.every(player => player === null || typeof player?.name === 'string')))) {
         throw new Error('Invalid seat selection');
       }
     } else if (message?.type === 'state' && membership) {
@@ -323,6 +326,9 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
       clearTimeout(connectionTimeout);
       const firstSeat = !membership;
       membership = message;
+      offer = undefined;
+      choosingSeat = false;
+      seatNotice = '';
       if (firstSeat) keepInvitation = request.type === 'create' && request.botCount > 0;
       storedSeat(message.room, message.token);
       history.replaceState(null, '', makeLink(message.room));
@@ -330,7 +336,6 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
       title.textContent = 'Zaproszenie do stołu';
       options.hidden = true;
       form.hidden = true;
-      seatPicker.hidden = true;
       invite.hidden = false;
       setConnecting(false);
       showNotice('');
@@ -342,9 +347,7 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
       return;
     }
     if (message.type === 'seats') {
-      if (seatPicker.hidden) showNotice('');
       showSeats(message);
-      if (!message.spots.includes('free')) showNotice('Ten stół jest już pełny.');
       return;
     }
     if (message.type === 'closed') { stop(message.message, false); return; }
@@ -374,7 +377,10 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
         if (membership) { stop(message.message, false); return; }
       }
       if (membership) draw(message.message, { restored: true });
-      else if (message.code === 'seat') showNotice(message.message);
+      else if (message.code === 'seat' && offer) {
+        choosingSeat = false;
+        seatNotice = message.message;
+      }
       else failConnection(socket, message.message);
       return;
     }
@@ -443,7 +449,7 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
   }
 
   function open(profile, fromInvite = false) {
-    if (dialog.open || membership) return;
+    if (dialog.open || membership || offer) return;
     const parameters = new URLSearchParams(location.search);
     const invitedRoom = fromInvite ? parameters.get('table')?.toUpperCase() : '';
     if (fromInvite && !roomPattern.test(invitedRoom)) return;
@@ -478,11 +484,6 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
     less.addEventListener('click', () => { field.stepDown(); updateCounts(); });
     more.addEventListener('click', () => { field.stepUp(); updateCounts(); });
   }
-  seatsBack.addEventListener('click', () => {
-    failConnection(socket, '');
-    showStep('join');
-    roomField.focus();
-  });
   form.addEventListener('submit', event => {
     event.preventDefault();
     if (socket || !mode) return;
@@ -501,7 +502,7 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
     showNotice('Łączymy się z PokerZone…');
     const request = mode === 'create'
       ? { type: 'create', name: nick, avatar, bigBlind: selectedBlind, playerCount, botCount, turnSeconds: timeField.valueAsNumber }
-      : { type: 'inspect', room };
+      : { type: 'inspect', room, live: true };
     connect(request);
   });
 
@@ -544,10 +545,20 @@ function createPokerOnline(dialog, { enter, update, leave, onProfile, onChat, on
     setConnecting(false);
   });
   window.addEventListener('pageshow', event => {
-    if (!event.persisted || !membership || socket) return;
+    if (!event.persisted || socket) return;
+    if (offer) {
+      choosingSeat = false;
+      connect({ type: 'inspect', room: offer.room, live: true });
+      return;
+    }
+    if (!membership) return;
     draw('Przywracamy połączenie ze stołem…', { restored: true });
     connect({ type: 'resume', room: membership.room, token: membership.token });
   });
 
-  return { game, open, openInvitation, stop, changeProfile, sendChat: text => sendMemberMessage('chat', { text }) };
+  function backFromSeats() {
+    if (offer) failConnection(socket, '');
+  }
+
+  return { game, open, openInvitation, backFromSeats, stop, changeProfile, sendChat: text => sendMemberMessage('chat', { text }) };
 }

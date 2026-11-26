@@ -14,6 +14,7 @@
   const leaveTableAction = document.querySelector('#leave-table-action');
   const endTutorialButton = document.querySelector('#end-tutorial');
   const endOnlineButton = document.querySelector('#end-online');
+  const backOnlineSeats = document.querySelector('#back-online-seats');
   const inviteOnlineButton = document.querySelector('#show-online-invite');
   const onlineStatus = document.querySelector('#online-table-status');
   const lossDialog = document.querySelector('#lossDialog');
@@ -77,19 +78,38 @@
     nextHand: tutorial.next, replay: tutorial.replay, advanceOverview: tutorial.advanceOverview
   });
 
+  function enterOnlineTable(pickingSeat) {
+    onlineActive = true;
+    game.pause();
+    if (setup.open) setup.close('online');
+    document.body.classList.add('online-active');
+    leaveTableAction.hidden = true;
+    historyPanel.hidden = true;
+    menuButton.hidden = true;
+    backOnlineSeats.hidden = !pickingSeat;
+    endOnlineButton.hidden = pickingSeat;
+    inviteOnlineButton.hidden = pickingSeat;
+    chat.onChange(null);
+  }
+
+  function showOnlineStatus(message) {
+    if (onlineStatus.textContent !== message) onlineStatus.textContent = message;
+    onlineStatus.hidden = false;
+  }
+
   const online = createPokerOnline(document.querySelector('#online-dialog'), {
     enter() {
-      onlineActive = true;
-      game.pause();
-      if (setup.open) setup.close('online');
-      document.body.classList.add('online-active');
-      leaveTableAction.hidden = true;
-      historyPanel.hidden = true;
-      menuButton.hidden = true;
-      endOnlineButton.hidden = false;
-      inviteOnlineButton.hidden = false;
-      chat.onChange(null);
+      enterOnlineTable(false);
       renderOnlineHistory({ entries: [] });
+    },
+    preview(offer, chooseSeat, busy, message) {
+      if (!onlineActive) {
+        enterOnlineTable(true);
+        backOnlineSeats.focus({ preventScroll: true });
+      }
+      dismissTableTooltip(root);
+      pokerView.renderSeatPicker(root, offer, chooseSeat, busy);
+      showOnlineStatus(message);
     },
     update(state, options, message) {
       dismissTableTooltip(root);
@@ -98,8 +118,7 @@
       effects.onChange(state, options);
       chat.onChange(state, options);
       onlineHistoryPanel.hidden = !state;
-      if (onlineStatus.textContent !== message) onlineStatus.textContent = message;
-      onlineStatus.hidden = false;
+      showOnlineStatus(message);
     },
     onProfile(player) { pokerView.applySeatProfile(root, player); },
     onChat(player, text) { chat.showMessage(player, text); },
@@ -109,6 +128,7 @@
       if (profileDialog.open) profileDialog.close();
       if (chatDialog.open) chatDialog.close();
       document.body.classList.remove('online-active');
+      backOnlineSeats.hidden = true;
       endOnlineButton.hidden = true;
       inviteOnlineButton.hidden = true;
       onlineStatus.hidden = true;
@@ -165,6 +185,7 @@
   }
 
   setup.querySelector('#open-online').addEventListener('click', () => online.open(profile.current()));
+  backOnlineSeats.addEventListener('click', () => online.backFromSeats());
   endOnlineButton.addEventListener('click', () => online.stop());
   inviteOnlineButton.addEventListener('click', () => online.openInvitation());
   const tutorialButton = setup.querySelector('#setup-tutorial');

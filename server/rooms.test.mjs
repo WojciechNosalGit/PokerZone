@@ -50,6 +50,11 @@ test('private table masks cards, enforces turns, reconnects seats and pays out',
   assert.equal(invitation.seat, 0);
   assert.equal((await host.find(is('state'))).state, null);
   let guest = await player(address);
+  guest.send({ type: 'inspect', room: invitation.room, live: true });
+  const preview = await guest.find(is('seats'));
+  assert.equal(preview.state, null);
+  assert.deepEqual(preview.spots, ['taken', 'free']);
+  assert.equal(preview.occupants[0].name, 'Wojtek');
   guest.send({ type: 'join', room: invitation.room, name: 'Ola' });
   const guestSeat = await guest.find(is('seat'));
   assert.equal(guestSeat.seat, 1);
@@ -190,8 +195,13 @@ test('mixed table starts with the host and bot, and guests choose seats for the 
 
   const [guest, other] = await Promise.all([player(address), player(address)]);
   for (const client of [guest, other]) {
-    client.send({ type: 'inspect', room });
-    assert.deepEqual((await client.find(is('seats'))).spots, ['taken', 'free', 'bot', 'free']);
+    client.send({ type: 'inspect', room, live: true });
+    const preview = await client.find(is('seats'));
+    assert.deepEqual(preview.spots, ['taken', 'free', 'bot', 'free']);
+    assert.equal(preview.state.players[0].name, 'Gospodarz');
+    assert.deepEqual(preview.state.players[0].hand, [null, null]);
+    assert.deepEqual(preview.state.players[2].hand, [null, null]);
+    assert.equal(preview.state.deck, undefined);
   }
   guest.send({ type: 'join', room, seat: 3, name: 'Ola' });
   assert.equal((await guest.find(is('seat'))).seat, 3);
@@ -201,6 +211,7 @@ test('mixed table starts with the host and bot, and guests choose seats for the 
   assert.equal(watching.state.players[0].waiting, true);
   assert.deepEqual(watching.state.players[0].hand, []);
   assert.deepEqual(watching.state.players[1].hand, [null, null]);
+  assert.deepEqual((await other.find(is('seats'))).spots, ['taken', 'free', 'bot', 'taken']);
   action(guest, watching, 'call');
   assert.match((await guest.find(is('error'))).message, /niedostępny/);
   other.send({ type: 'join', room, seat: 3, name: 'Ania' });

@@ -42,6 +42,7 @@
           <button class="reset game-menu-button leave-table-button" type="button" id="leaveTable" aria-haspopup="dialog" aria-controls="game-setup" data-tooltip="Żetony spoza puli wrócą do bankrolla. Możesz wybrać inny stół.">Opuść stół</button>
         </div>
         <button class="reset game-menu-button leave-table-button" type="button" id="end-tutorial" aria-haspopup="dialog" aria-controls="game-setup" hidden>Zakończ samouczek</button>
+        <button class="reset game-menu-button" type="button" id="back-online-seats" aria-haspopup="dialog" aria-controls="online-dialog" hidden>Wróć</button>
         <button class="reset game-menu-button" type="button" id="show-online-invite" aria-haspopup="dialog" aria-controls="online-dialog" hidden>Zaproś</button>
         <button class="reset game-menu-button leave-table-button" type="button" id="end-online" aria-haspopup="dialog" aria-controls="game-setup" hidden>Opuść stół online</button>
         <button class="reset game-menu-button" type="button" id="game-menu" aria-haspopup="dialog" aria-controls="game-setup">Menu</button>
@@ -199,12 +200,6 @@
         <button class="zone-art-button" id="online-back" type="button">Wróć</button>
       </div>
     </form>
-    <div id="online-seat-picker" hidden>
-      <div class="online-seat-map" id="online-seat-map" role="group" aria-label="Miejsca przy stole"></div>
-      <div class="setup-controls">
-        <button class="zone-art-button" id="online-seats-back" type="button">Wróć</button>
-      </div>
-    </div>
     <div id="online-invitation" hidden>
       <div class="zone-field"><label for="online-code">Kod zaproszenia</label><input id="online-code" readonly></div>
       <p id="online-waiting" role="status"></p>
