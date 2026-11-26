@@ -41,9 +41,10 @@ function bindPokerMenu(menuButton, setup, game, effects, openProfile) {
   const morePlayers = setup.querySelector('#setup-players-more');
   const { minPlayers, maxPlayers, defaultPlayers, stakes, buyInFor, buyInRange, formatAmount, startingBankroll } = pokerGame;
   let preferredBuyInBB = buyInFor(1);
-  const playerIcons = Array.from({ length: maxPlayers }, () => {
+  const playerIcons = Array.from({ length: maxPlayers }, (_, index) => {
     const icon = document.createElement('span');
     icon.className = 'table-player-icon';
+    icon.style.setProperty('--player-icon-index', index);
     icon.hidden = true;
     return icon;
   });

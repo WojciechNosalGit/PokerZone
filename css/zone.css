@@ -1002,19 +1002,27 @@ dialog.zone-surface::after {
 }
 
 .setup-player-icons .table-player-icon {
+  display: block;
   inline-size: min(100%, 16px);
   block-size: auto;
   aspect-ratio: 16 / 17;
 }
 
 .setup-player-icons [hidden] {
-  display: none;
+  visibility: hidden;
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .setup-player-icons .table-player-icon:not([hidden]) {
-    animation: content-enter 145ms ease-out;
+  #game-setup[open] .setup-player-icons .table-player-icon {
+    animation: setup-player-wave 6s ease-in-out calc(900ms + var(--player-icon-index) * 90ms) infinite;
+    transition: opacity 145ms ease-out;
   }
+}
+
+@keyframes setup-player-wave {
+  0%, 8%, 100% { translate: 0 0; }
+  4% { translate: 0 -4px; }
 }
 
 .setup-backs {
@@ -1208,6 +1216,14 @@ dialog.zone-surface::after {
 .zone-start-game {
   width: 100%;
   min-height: 48px;
+}
+
+#start-game:enabled {
+  --button-edge: linear-gradient(135deg, #b2f9ff, #54dce9 32%, #2eabc2 75%, #85eaf3);
+  --button-corner: #87f6fe88;
+  --button-glow: #2ccad864;
+  --button-fill: linear-gradient(155deg, #1a4556, #0b2b39 74%, #164455);
+  box-shadow: 0 0 14px #41d9ed30;
 }
 
 .table-footer {
