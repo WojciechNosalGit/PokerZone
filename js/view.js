@@ -127,14 +127,17 @@ const pokerView = (() => {
     const turn = state.phase === 'betting' && !state.dealing && state.actor === player.id;
     const preset = pokerAvatars.isPreset(player.avatar) ? ` data-avatar-preset="${player.avatar}"` : '';
     const portrait = `<span class="seat-avatar"${preset} aria-hidden="true"></span>`;
+    const ring = turn && player.kind === 'human' && clock
+      ? '<span class="turn-clock" role="timer" aria-label="Czas na ruch"><span class="zone-visually-hidden turn-clock-label"></span></span>' : '';
     const avatarControl = hero && interactiveProfile
       ? `<div class="hero-tools">
          <button type="button" id="table-profile" class="hero-profile" aria-label="Twój profil" aria-haspopup="dialog" aria-controls="player-profile" data-tooltip="Profil">
            ${portrait}<span class="zone-tooltip hero-profile-label" aria-hidden="true">Profil</span>
          </button>
+         ${ring}
          <button type="button" id="write-chat" class="zone-tooltip hero-chat-button" aria-haspopup="dialog" aria-controls="table-chat-dialog">Napisz</button>
        </div>`
-      : portrait;
+      : portrait + ring;
     const seatStatus = player.folded ? 'spot-folded' : 'spot-active';
     const position = seatPositions[state.players.length][player.id];
     const label = escapeHTML(player.name);
@@ -158,7 +161,6 @@ const pokerView = (() => {
        </div>
        ${avatarAction ? actionLabelHTML({ kind: action.kind, text: avatarAction }, 'action-label avatar-action') : ''}
        ${avatarControl}
-       ${turn && clock ? '<div class="turn-clock" role="timer" aria-label="Czas na ruch"><span class="turn-clock-track" aria-hidden="true"></span><span class="turn-clock-label"></span></div>' : ''}
      </div>
      <div class="seat-position">${positionLabel}</div>
      <div class="seat-action">${allIn || avatarAction ? '' : actionLabelHTML(action)}</div>
@@ -312,7 +314,7 @@ const pokerView = (() => {
     let showAnalysis = false;
     let previousSessionId;
     let previousPhase;
-    let clockTimer;
+    let clockFrame;
     try {
       showAnalysis = localStorage.getItem(analysisPreference) === 'true';
     } catch {
@@ -329,10 +331,9 @@ const pokerView = (() => {
         if (label.textContent !== text) label.textContent = text;
         element.style.setProperty('--time-left', remaining / (clock.seconds * 1000));
         element.classList.toggle('turn-clock-low', remaining <= 5000);
-        if (!remaining) clearInterval(clockTimer);
-        return remaining;
+        if (remaining) clockFrame = requestAnimationFrame(refresh);
       };
-      if (refresh()) clockTimer = setInterval(refresh, 100);
+      refresh();
     }
 
     function bindControls(turn, runningOut, tutorial, online) {
@@ -444,7 +445,7 @@ const pokerView = (() => {
     }
 
     return function render(state, { restored = false, tutorial, online } = {}) {
-      clearInterval(clockTimer);
+      cancelAnimationFrame(clockFrame);
       overviewResize?.disconnect();
       if (!state || state.phase === 'left') {
         outlineResize?.disconnect();

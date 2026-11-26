@@ -239,6 +239,7 @@ test('an online bot takes its own turn', async t => {
   await host.find(is('seat'));
   const turn = await host.find(hand('preflop', 0));
   action(host, turn, 'call');
+  assert.equal((await host.find(hand('preflop', 1))).remainingMs, null);
   const reply = await host.find(message => message.state?.logs.some(entry => entry.action && entry.playerId === 1));
   assert.ok(reply.revision > turn.revision);
 });

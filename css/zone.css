@@ -776,37 +776,23 @@ dialog.zone-surface::after {
   text-align: center;
 }
 
-.online-active .seat-info {
-  padding-bottom: 13px;
-}
-
 .turn-clock {
-  position: absolute;
-  inset: auto calc(var(--avatar-overlap) + 5px) 1px 12px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 4px;
   color: #f7d692;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
+  pointer-events: none;
 }
 
-.turn-clock-track {
-  overflow: hidden;
-  border-radius: 999px;
-  background: #ffffff26;
+.hero-tools .turn-clock {
+  inset: 0;
+  translate: none;
 }
 
-.turn-clock-track::after {
+.turn-clock::before {
   content: '';
-  display: block;
-  height: 3px;
-  border-radius: inherit;
-  background: currentColor;
-  transform: scaleX(var(--time-left, 1));
-  transform-origin: left;
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(#ffffff26 calc((1 - var(--time-left, 1)) * 1turn), currentColor 0);
+  mask-image: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
 }
 
 .turn-clock-low {

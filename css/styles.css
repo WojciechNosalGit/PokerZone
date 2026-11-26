@@ -1468,7 +1468,8 @@ button:disabled {
 }
 
 .seat-avatar,
-.hero-tools {
+.hero-tools,
+.turn-clock {
   position: absolute;
   top: 50%;
   inset-inline-start: calc(100% - var(--avatar-overlap));
@@ -2359,7 +2360,7 @@ button:disabled {
     padding-inline: calc(var(--avatar-overlap) + 3px) 12px;
   }
 
-  .right-seat .seat-avatar {
+  .right-seat :is(.seat-avatar, .turn-clock) {
     inset-inline-start: auto;
     inset-inline-end: calc(100% - var(--avatar-overlap));
   }
