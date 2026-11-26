@@ -21,7 +21,7 @@ Gra online wymaga publicznego serwera PokerZone. GitHub Pages publikuje stronę,
 
 1. W Render wybierz **New → Blueprint** i połącz repozytorium zawierające `render.yaml`. Konfiguracja uruchamia pojedynczy proces PokerZone na planie Free. [Wdrażanie Blueprintów](https://render.com/docs/infrastructure-as-code)
 2. Gdy wdrożenie będzie gotowe, otwórz adres HTTPS usługi Render. Strona gry dostępna pod tym adresem automatycznie używa serwera z tej samej domeny. Na bezpłatnym planie pierwsze otwarcie po okresie bezczynności może potrwać około minuty. [WebSocket na Render](https://render.com/docs/websocket) · [Usypianie na planie Free](https://render.com/docs/free#spinning-down-on-idle)
-3. Aby uruchamiać rozgrywkę ze strony GitHub Pages, ustaw publiczny adres serwera `wss://…/ws` w atrybucie `content` znacznika `pokerzone-online-url` w `index.html` i opublikuj stronę. Przeglądarka połączy się z nim automatycznie. Link zaproszenia zawiera kod stołu.
+3. Wersja na GitHub Pages łączy się automatycznie z `wss://pokerzone-online.onrender.com/ws`. Jeśli przeniesiesz serwer, zaktualizuj wartość znacznika `pokerzone-online-url` w `index.html`. Link zaproszenia zawiera kod stołu.
 
 Na innym hostingu ustaw `HOST=0.0.0.0` i port przez zmienną `PORT`. Zainstaluj zależności poleceniem `npm --prefix server ci`, a proces uruchom przez `npm --prefix server start`. Kontrola dostępności działa pod `/health`, a gra pod `/ws`. Użyj jednej instancji procesu, bo pokoje są przechowywane w jej pamięci.
 

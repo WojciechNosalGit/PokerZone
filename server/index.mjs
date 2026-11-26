@@ -33,7 +33,7 @@ async function serveSite(request, response) {
   if (pathname === '/index.html') {
     const html = await readFile(file, 'utf8').catch(() => null);
     if (html === null) { response.writeHead(404).end(); return; }
-    const page = html.replace('name="pokerzone-online-url" content=""', 'name="pokerzone-online-url" content="/ws"');
+    const page = html.replace(/name="pokerzone-online-url" content="[^"]*"/, 'name="pokerzone-online-url" content="/ws"');
     response.writeHead(200, { 'Content-Type': type, 'Content-Length': Buffer.byteLength(page), 'X-Content-Type-Options': 'nosniff' });
     response.end(request.method === 'HEAD' ? undefined : page);
     return;
