@@ -3,6 +3,21 @@
 const pokerBots = (() => {
   const { fullDeck, randomIndex, rank5, score7, currentHandScore, compareScore } = pokerCards;
   const cardId = card => card.r + ':' + card.s;
+  const openingRanges = {
+    early: {
+      suited: { 13: 10, 12: 9, 11: 9 }, offsuit: { 14: 8 }, connector: 8, oneGap: 10, raiseChance: 0.27
+    },
+    middle: {
+      suited: { 13: 8, 12: 8, 11: 8, 10: 8 }, offsuit: { 14: 6, 13: 10, 12: 10 }, connector: 7, oneGap: 9, raiseChance: 0.55
+    },
+    cutoff: {
+      suited: { 13: 5, 12: 7, 11: 7, 10: 7 }, offsuit: { 14: 4, 13: 8, 12: 9, 11: 9, 10: 9 }, connector: 6, oneGap: 8, raiseChance: 0.63
+    },
+    button: {
+      suited: { 13: 2, 12: 4, 11: 6, 10: 7 }, offsuit: { 14: 2, 13: 3, 12: 7, 11: 8, 10: 8, 9: 8 }, connector: 5, oneGap: 7, raiseChance: 0.72
+    }
+  };
+  const openingPositions = { BTN: 'button', 'BTN / SB': 'button', CO: 'cutoff', HJ: 'middle', 'UTG+2': 'middle' };
 
   function estimateEquity(player, board, opponentCount, simulations, drawIndex = randomIndex, opponentWeight) {
     if (opponentCount <= 0) return 1;
@@ -53,11 +68,13 @@ const pokerBots = (() => {
     return adjustment;
   }
 
-  function preflopTier([a, b], widerRange = false, lowestStakes = false, extraLoose = false) {
-    const high = Math.max(a.r, b.r);
-    const low = Math.min(a.r, b.r);
+  function handShape([a, b]) {
+    return { high: Math.max(a.r, b.r), low: Math.min(a.r, b.r), suited: a.s === b.s };
+  }
+
+  function preflopTier(hand, widerRange = false, lowestStakes = false, extraLoose = false) {
+    const { high, low, suited } = handShape(hand);
     const paired = high === low;
-    const suited = a.s === b.s;
     const broadway = high > low && low >= 10;
     if ((paired && high >= 10) || (high === 14 && low >= 12) || (suited && high === 13 && low === 12)) return 3;
     if ((paired && high >= 6) || (broadway && (suited || high >= 13)) || (high === 14 && low >= 9)) return 2;
@@ -69,7 +86,16 @@ const pokerBots = (() => {
     return 0;
   }
 
-  function preflopAction(player, { currentBet, bigBlind, lastAggressor, potSize }, { price, odds, equity, mayRaise }) {
+  function inOpeningRange(hand, range, lowestStakes) {
+    const { high, low, suited } = handShape(hand);
+    const widerBy = lowestStakes ? 1 : 0;
+    const minimumKicker = (suited ? range.suited : range.offsuit)[high] ?? Infinity;
+    return low >= minimumKicker - widerBy || (suited && (
+      (high - low === 1 && high >= range.connector - widerBy)
+      || (high - low === 2 && high >= range.oneGap - widerBy)));
+  }
+
+  function preflopAction(player, { currentBet, bigBlind, lastAggressor, potSize, opponentCount }, { price, odds, equity, mayRaise }) {
     const lowestStakes = bigBlind === 4;
     const midStakes = bigBlind === 10;
     const aggressive = lowestStakes && player.preflopStyle === 'loose-aggressive';
@@ -84,18 +110,21 @@ const pokerBots = (() => {
     const tierTwoRaiseChance = aggressive ? 0.85 : lowestStakes ? 0.65 : 0.55;
     if (mayRaise && tier === 2 && !raised && (favourableSeat || Math.random() < tierTwoRaiseChance)) return 'raise';
 
-    if ((lowestStakes || (midStakes && latePosition)) && tier === 1 && !raised && mayRaise
-      && price > 0 && potSize <= (aggressive ? 4 : 3) * bigBlind) {
-      let openingChance = player.kind === 'tight' ? 0.40 : player.kind === 'loose' ? 0.68 : 0.54;
-      if (lowestStakes) {
-        openingChance = latePosition ? openingChance + (aggressive ? 0.20 : 0.08)
-          : aggressive ? 0.43 : extraLoose ? 0.24 : 0.12;
+    let widerOpening = false;
+    if ((lowestStakes || midStakes) && !raised && tier < 2 && price > 0) {
+      const position = player.position === 'SB' && opponentCount === 1 ? 'cutoff' : openingPositions[player.position] ?? 'early';
+      const range = openingRanges[position];
+      widerOpening = tier === 0 && potSize <= 4 * bigBlind && inOpeningRange(player.hand, range, lowestStakes);
+      if (mayRaise && (tier === 1 || widerOpening) && potSize <= (aggressive || tier === 1 ? 4 : 3) * bigBlind) {
+        const personality = player.kind === 'tight' ? -0.13 : player.kind === 'loose' ? 0.11 : 0;
+        const style = aggressive ? 0.16 : extraLoose ? 0.07 : 0;
+        const openingChance = range.raiseChance + personality + style + (lowestStakes ? 0.08 : 0) - (widerOpening ? 0.20 : 0);
+        if (Math.random() < Math.min(0.95, openingChance)) return 'raise';
       }
-      if (Math.random() < openingChance) return 'raise';
     }
 
     if (!price) return 'check';
-    if (!tier) return 'fold';
+    if (!tier && !widerOpening) return 'fold';
     if (tier === 3) return equity >= odds + 0.02 ? 'call' : 'fold';
     if (tier === 2) return price <= 5 * bigBlind && equity >= odds + 0.075 ? 'call' : 'fold';
 
