@@ -117,7 +117,7 @@ const pokerView = (() => {
   function tableSeatHTML(player, state, interactiveProfile) {
     const hero = player.id === 0;
     const participating = player.hand.length === 2;
-    if (!hero && !participating) return '';
+    if (!hero && !participating && !player.waiting) return '';
 
     const amount = player.bet;
     const allIn = participating && !player.folded && player.allIn;
@@ -270,6 +270,7 @@ const pokerView = (() => {
 
   function statusHTML(state, player, online) {
     if (online && !online.connected) return 'Czekamy na połączenie wszystkich graczy.';
+    if (player.waiting) return 'Zagrasz od następnego rozdania po wpłaceniu big blinda.';
     if (state.phase === 'finished' || state.phase === 'gameover') {
       return `<span class="result-title">${escapeHTML(state.summary)}</span>`;
     }
@@ -277,7 +278,10 @@ const pokerView = (() => {
     if (state.phase !== 'betting') return 'Przygotowanie rozdania';
     if (state.runoutFrom) return '<button class="skip-runout" id="skip-runout" type="button">Pomiń animację</button>';
     if (state.actor === -1) return state.street === 'river' ? 'Showdown…' : 'Odkrywanie kart wspólnych…';
-    if (state.actor !== 0) return `Ruch: <strong>${escapeHTML(displayName(state.players[state.actor]))}</strong> ${online ? 'podejmuje decyzję…' : 'analizuje rozdanie…'}`;
+    if (state.actor !== 0) {
+      const actor = state.players[state.actor];
+      return `Ruch: <strong>${escapeHTML(online ? actor.name : displayName(actor))}</strong> ${online ? 'podejmuje decyzję…' : 'analizuje rozdanie…'}`;
+    }
     const toCall = Math.min(Math.max(0, state.currentBet - player.bet), player.stack);
     return `<strong>Twoja kolej.</strong> Wybierz ruch. Do sprawdzenia: <strong>${money(toCall)}</strong>`;
   }
@@ -540,5 +544,5 @@ const pokerView = (() => {
     };
   }
 
-  return { createView, applyProfile, cardHTML, chipPileHTML, escapeHTML, streetNames };
+  return { createView, applyProfile, cardHTML, chipPileHTML, escapeHTML, streetNames, seatPositions };
 })();

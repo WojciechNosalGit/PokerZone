@@ -12,6 +12,7 @@
   const leaveTableAction = document.querySelector('#leave-table-action');
   const endTutorialButton = document.querySelector('#end-tutorial');
   const endOnlineButton = document.querySelector('#end-online');
+  const inviteOnlineButton = document.querySelector('#show-online-invite');
   const onlineStatus = document.querySelector('#online-table-status');
   const lossDialog = document.querySelector('#lossDialog');
   const acknowledgeLoss = lossDialog.querySelector('#acknowledgeLoss');
@@ -83,6 +84,7 @@
       historyPanel.hidden = true;
       menuButton.hidden = true;
       endOnlineButton.hidden = false;
+      inviteOnlineButton.hidden = false;
       chat.onChange(null);
     },
     update(state, options, message) {
@@ -97,6 +99,7 @@
       onlineActive = false;
       document.body.classList.remove('online-active');
       endOnlineButton.hidden = true;
+      inviteOnlineButton.hidden = true;
       onlineStatus.hidden = true;
       menuButton.hidden = false;
       restoreSetup();
@@ -144,6 +147,7 @@
 
   setup.querySelector('#open-online').addEventListener('click', () => online.open(profile.current().name));
   endOnlineButton.addEventListener('click', () => online.stop());
+  inviteOnlineButton.addEventListener('click', () => online.openInvitation());
   const tutorialButton = setup.querySelector('#setup-tutorial');
   tutorialButton.addEventListener('click', () => {
     if (!setup.open || training || onlineActive) return;

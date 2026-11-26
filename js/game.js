@@ -405,7 +405,7 @@ const pokerGame = (() => {
     }
 
     function replaceBustedBots() {
-      const busted = state.players.slice(1).filter(player => player.stack === 0);
+      const busted = state.players.slice(1).filter(player => player.stack === 0 && player.kind !== 'human');
       if (!busted.length) return [];
       const available = availableBotProfiles(state.players);
       const replacements = busted.map(({ id, kind, preflopStyle }) => {
@@ -420,12 +420,13 @@ const pokerGame = (() => {
     }
 
     function startHand() {
-      if (!state || isTableClosed(state.phase)) return;
+      if (!state || state.phase === 'left' || (state.phase === 'gameover' && !rules.onlineTable)) return;
       clearTableTimers();
+      if (rules.onlineTable && !rules.canStartHand(state.players)) return;
       state.epoch++;
       const hero = human();
-      const rebuy = hero.stack === 0 ? affordableBuyIn(state.bigBlind, bankroll, state.rebuyTarget) : 0;
-      if (!rules.humanOnly && hero.stack === 0) {
+      const rebuy = !rules.onlineTable && hero.stack === 0 ? affordableBuyIn(state.bigBlind, bankroll, state.rebuyTarget) : 0;
+      if (!rules.onlineTable && hero.stack === 0) {
         if (!rebuy) {
           leaveTable();
           return;
@@ -435,7 +436,7 @@ const pokerGame = (() => {
         state.heroBuyIns += rebuy;
         state.tableBuyIns += rebuy;
       }
-      const newBots = rules.humanOnly ? [] : replaceBustedBots();
+      const newPlayers = [...(rules.prepareHand?.(state.players) ?? []), ...replaceBustedBots()];
       const live = state.players.filter(player => player.stack > 0);
       state.dealer = rules.dealer?.() ?? nextSeat(state.dealer, player => player.stack > 0);
       state.handId = createId();
@@ -483,12 +484,12 @@ const pokerGame = (() => {
         text: `Rozdanie #${state.handNo} · SB ${formatAmount(smallBlindPaid)} · BB ${formatAmount(bigBlindPaid)}`
       });
       if (rebuy) addLog({ kind: 'notice', text: `Wpisowe z bankrolla: ${formatAmount(rebuy)}` });
-      for (const bot of newBots) {
-        const posted = chipIn(bot, state.bigBlind - bot.bet);
-        bot.lastAction = { kind: 'blind', text: `BB ${formatAmount(bot.bet)}` };
+      for (const player of newPlayers) {
+        const posted = chipIn(player, state.bigBlind - player.bet);
+        player.lastAction = { kind: 'blind', text: `BB ${formatAmount(player.bet)}` };
         const verb = posted === state.bigBlind ? 'wpłaca' : 'dopłaca';
         const entry = posted ? ` i ${verb} ${formatAmount(posted)} do wejściowego BB` : ' na pozycji BB';
-        addLog({ kind: 'notice', text: `${bot.name} dołącza do stołu${entry}.` });
+        addLog({ kind: 'notice', text: `${player.name} dołącza do stołu${entry}.` });
       }
 
       let dealIndex = state.dealer;
@@ -741,8 +742,8 @@ const pokerGame = (() => {
       state.runoutFrom = null;
       const hero = human();
       state.foldPending = false;
-      const gameOver = rules.humanOnly
-        ? state.players.filter(player => player.stack > 0).length < 2
+      const gameOver = rules.onlineTable
+        ? !rules.canStartHand(state.players)
         : hero.stack === 0 && bankroll === 0;
       if (gameOver) {
         finishTable();
@@ -801,7 +802,7 @@ const pokerGame = (() => {
         if (state.foldPending) act(0, { type: 'fold' });
         return;
       }
-      if (state.actor > 0 && rules.humanOnly) return;
+      if (state.actor > 0 && state.players[state.actor].kind === 'human') return;
       const actor = state.actor;
       const hand = state;
       const token = state.epoch;

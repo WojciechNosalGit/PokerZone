@@ -42,6 +42,7 @@
           <button class="reset game-menu-button leave-table-button" type="button" id="leaveTable" aria-haspopup="dialog" aria-controls="game-setup" data-tooltip="Żetony spoza puli wrócą do bankrolla. Możesz wybrać inny stół.">Opuść stół</button>
         </div>
         <button class="reset game-menu-button leave-table-button" type="button" id="end-tutorial" aria-haspopup="dialog" aria-controls="game-setup" hidden>Zakończ samouczek</button>
+        <button class="reset game-menu-button" type="button" id="show-online-invite" aria-haspopup="dialog" aria-controls="online-dialog" hidden>Zaproś</button>
         <button class="reset game-menu-button leave-table-button" type="button" id="end-online" aria-haspopup="dialog" aria-controls="game-setup" hidden>Opuść stół online</button>
         <button class="reset game-menu-button" type="button" id="game-menu" aria-haspopup="dialog" aria-controls="game-setup">Menu</button>
       </div>
@@ -163,10 +164,21 @@
           <div class="setup-slider-row">
             <div class="raise-stepper">
               <button class="raise-step" id="online-players-less" type="button" aria-label="Zmniejsz liczbę graczy">−</button>
-              <input id="online-players" type="range" min="2" max="8" value="4" aria-labelledby="online-player-label">
+              <input id="online-players" type="range" min="1" max="8" value="4" aria-labelledby="online-player-label">
               <button class="raise-step" id="online-players-more" type="button" aria-label="Zwiększ liczbę graczy">+</button>
             </div>
             <output class="setup-buy-in-amount" id="online-player-count" for="online-players"></output>
+          </div>
+        </fieldset>
+        <fieldset class="setup-player-control">
+          <legend id="online-bot-label">Liczba botów</legend>
+          <div class="setup-slider-row">
+            <div class="raise-stepper">
+              <button class="raise-step" id="online-bots-less" type="button" aria-label="Zmniejsz liczbę botów">−</button>
+              <input id="online-bots" type="range" min="0" max="7" value="0" aria-labelledby="online-bot-label">
+              <button class="raise-step" id="online-bots-more" type="button" aria-label="Zwiększ liczbę botów">+</button>
+            </div>
+            <output class="setup-buy-in-amount" id="online-bot-count" for="online-bots"></output>
           </div>
         </fieldset>
       </div>
@@ -175,12 +187,19 @@
         <button class="zone-art-button" id="online-back" type="button">Wróć</button>
       </div>
     </form>
+    <div id="online-seat-picker" hidden>
+      <div class="online-seat-map" id="online-seat-map" role="group" aria-label="Miejsca przy stole"></div>
+      <div class="setup-controls">
+        <button class="zone-art-button" id="online-seats-back" type="button">Wróć</button>
+      </div>
+    </div>
     <div id="online-invitation" hidden>
       <div class="zone-field"><label for="online-code">Kod zaproszenia</label><input id="online-code" readonly></div>
       <p id="online-waiting" role="status"></p>
       <div class="setup-controls">
         <button class="zone-art-button zone-gold-button" id="copy-online-code" type="button">Kopiuj kod</button>
         <button class="zone-art-button" id="copy-online-link" type="button">Kopiuj link</button>
+        <button class="zone-art-button zone-gold-button" id="enter-online-table" type="button" hidden>Przejdź do stołu</button>
       </div>
     </div>
     <p class="menu-status" id="online-dialog-status" role="status" hidden></p>

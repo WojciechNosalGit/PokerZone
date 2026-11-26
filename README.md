@@ -13,7 +13,7 @@ npm --prefix server ci
 npm --prefix server start
 ```
 
-Otwórz `http://127.0.0.1:8080` w przeglądarce i wybierz **Graj online → Utwórz stół**. Ustaw stawkę i liczbę graczy od 2 do 8. Pozostali wybierają **Dołącz kodem** i wpisują kod z poczekalni lub otwierają link zaproszenia. Rozdanie zaczyna się, gdy wszyscy zajmą miejsca. Testy można uruchomić przez `npm --prefix server test`.
+Otwórz `http://127.0.0.1:8080` w przeglądarce i wybierz **Graj online → Utwórz stół**. Ustaw stawkę, liczbę osób (wliczając gospodarza) i liczbę botów. Stół ma od 2 do 8 miejsc łącznie, a gra rusza, gdy zasiądzie co najmniej dwóch uczestników. Kod jest dostępny pod przyciskiem **Zaproś**. Goście wpisują go w **Dołącz kodem** lub otwierają link zaproszenia i wybierają wolne miejsce. Do trwającej gry wchodzą od kolejnego rozdania i wpłacają wejściowy big blind. Testy można uruchomić przez `npm --prefix server test`.
 
 ### Udostępnienie przez internet
 

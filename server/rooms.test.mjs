@@ -162,3 +162,75 @@ test('one invitation seats up to eight players and starts only when the table is
   assert.deepEqual(lastResult.payouts, [[(winner + 1) % count, amount]]);
   assert.equal(hostResult.state.players.reduce((sum, player) => sum + player.stack, 0), count * 400);
 });
+
+test('mixed table starts with the host and bot, and guests choose seats for the next hand', async t => {
+  const instance = createPokerServer();
+  t.after(() => instance.close());
+  const { server } = instance;
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = `ws://127.0.0.1:${server.address().port}/ws`;
+  const host = await player(address);
+  host.send({ type: 'create', name: 'Gospodarz', bigBlind: 4, playerCount: 3, botCount: 1 });
+  const { room } = await host.find(is('seat'));
+  const first = await host.find(hand('preflop', 0));
+  assert.equal(first.present, 1);
+  assert.equal(first.humanCount, 3);
+  assert.equal(first.botCount, 1);
+  assert.equal(first.state.players.filter(player => player.hand.length === 2).length, 2);
+  assert.notEqual(first.state.players[2].kind, 'human');
+
+  const [guest, other] = await Promise.all([player(address), player(address)]);
+  for (const client of [guest, other]) {
+    client.send({ type: 'inspect', room });
+    assert.deepEqual((await client.find(is('seats'))).spots, ['taken', 'free', 'bot', 'free']);
+  }
+  guest.send({ type: 'join', room, seat: 3, name: 'Ola' });
+  assert.equal((await guest.find(is('seat'))).seat, 3);
+  const watching = await guest.find(is('state'));
+  assert.equal(watching.state.handNo, 1);
+  assert.equal(watching.state.players[0].name, 'Ola');
+  assert.equal(watching.state.players[0].waiting, true);
+  assert.deepEqual(watching.state.players[0].hand, []);
+  assert.deepEqual(watching.state.players[1].hand, [null, null]);
+  action(guest, watching, 'call');
+  assert.match((await guest.find(is('error'))).message, /niedostępny/);
+  other.send({ type: 'join', room, seat: 3, name: 'Ania' });
+  assert.equal((await other.find(is('error'))).code, 'seat');
+  assert.deepEqual((await other.find(is('seats'))).spots, ['taken', 'free', 'bot', 'taken']);
+  other.send({ type: 'join', room, seat: 1, name: 'Ania' });
+  assert.equal((await other.find(is('seat'))).seat, 1);
+
+  const hostTurn = await host.find(message => hand('preflop', 0)(message) && message.present === 3);
+  action(host, hostTurn, 'fold');
+  const result = await host.find(message => message.state?.phase === 'finished');
+  host.send({ type: 'next', revision: result.revision });
+  const nextHand = message => message.state?.handNo === 2 && message.state.dealing;
+  const [hostNext, olaNext, aniaNext] = await Promise.all([host.find(nextHand), guest.find(nextHand), other.find(nextHand)]);
+  assert.equal(hostNext.state.players[3].name, 'Ola');
+  assert.equal(hostNext.state.players[1].name, 'Ania');
+  assert.equal(olaNext.state.players[1].name, 'Gospodarz');
+  for (const snapshot of [olaNext, aniaNext]) {
+    const [entrant] = snapshot.state.players;
+    assert.equal(entrant.waiting, false);
+    assert.equal(entrant.contributed, 4);
+    assert.equal(entrant.stack, 396);
+    assert.equal(entrant.hand.filter(Boolean).length, 2);
+    for (const player of snapshot.state.players.slice(1)) assert.deepEqual(player.hand, [null, null]);
+  }
+});
+
+test('an online bot takes its own turn', async t => {
+  const instance = createPokerServer();
+  t.after(() => instance.close());
+  const { server } = instance;
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const host = await player(`ws://127.0.0.1:${server.address().port}/ws`);
+  host.send({ type: 'create', name: 'Gospodarz', bigBlind: 4, playerCount: 1, botCount: 1 });
+  await host.find(is('seat'));
+  const turn = await host.find(hand('preflop', 0));
+  action(host, turn, 'call');
+  const reply = await host.find(message => message.state?.logs.some(entry => entry.action && entry.playerId === 1));
+  assert.ok(reply.revision > turn.revision);
+});
