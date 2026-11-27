@@ -10,8 +10,11 @@
 
   .wrap {
     --table-status-height: 0px;
-    padding: calc(4px + var(--phone-safe-top)) calc(6px + var(--phone-safe-right))
-      calc(16px + var(--phone-safe-bottom)) calc(6px + var(--phone-safe-left));
+    --phone-header-height: clamp(27px, calc(var(--phone-height) * .085), 41px);
+    --phone-raise-height: clamp(22px, calc(var(--phone-height) * .065), 32px);
+    --phone-move-height: clamp(28px, calc(var(--phone-height) * .08), 40px);
+    padding: var(--phone-safe-top) var(--phone-safe-right)
+      calc(16px + var(--phone-safe-bottom)) var(--phone-safe-left);
   }
 
   .wrap:has(.online-table-status:not([hidden])) {
@@ -19,12 +22,14 @@
   }
 
   .topline {
-    display: flex;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     gap: 7px;
-    min-height: 34px;
-    margin-bottom: 4px;
-    padding: 0 2px;
+    min-height: var(--phone-header-height);
+    margin: 0;
+    padding: 2px clamp(12px, calc(var(--phone-width) * .038), 42px);
+    border-bottom: 1px solid #318b9e;
+    background: linear-gradient(110deg, #071f2c, #071620 65%, #0a1c28);
   }
 
   .topline .zone-brand {
@@ -32,17 +37,19 @@
   }
 
   .header-actions {
+    grid-column: 3;
     gap: 5px;
   }
 
   .header-actions .game-menu-button {
-    min-height: 32px;
-    padding: 3px 8px;
+    min-height: 25px;
+    padding: 2px 8px;
     font-size: 12px;
     white-space: nowrap;
   }
 
   .header-bankroll {
+    grid-area: 1 / 2;
     gap: 5px;
     padding: 2px 8px;
     font-size: 12px;
@@ -59,55 +66,58 @@
   }
 
   .table-panel {
-    padding: 4px;
-    border-radius: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .table-panel:has(> .table-footer) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(156px, calc(var(--phone-width) * .235), 222px);
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
   }
 
   .table-footer {
-    grid-area: 1 / 2;
-    width: 100%;
+    width: 84%;
   }
 
   .table-panel > .tutorial-coach {
     position: static;
-    grid-column: 1 / -1;
-    width: auto;
+    order: 1;
+    width: 94%;
   }
 
   .table-footer .controls {
     margin: 0;
-    padding: 6px;
+    padding: 5px 9px;
   }
 
   .table-footer .raise-controls {
-    grid-template: 'primary amount' auto 'secondary amount' auto 'presets presets' auto / minmax(0, 1fr) max-content;
-    gap: 3px 4px;
-    margin-bottom: 5px;
+    grid-template: 'primary amount secondary presets' auto / minmax(0, 1fr) max-content minmax(0, 1fr) minmax(0, .9fr);
+    gap: 4px;
+    margin-bottom: 3px;
+    font-size: clamp(9px, calc(var(--phone-width) * .013), 13px);
   }
 
   .table-footer .raise-stepper {
-    --raise-step-size: 28px;
-    gap: 2px;
+    --raise-step-size: clamp(18px, calc(var(--phone-width) * .028), 31px);
+    gap: 3px;
   }
 
   .table-footer .raise-stepper:has(output) {
-    grid-template-columns: var(--raise-step-size) minmax(0, 1fr) var(--raise-step-size) 5ch;
+    grid-template-columns: var(--raise-step-size) minmax(0, 1fr) var(--raise-step-size) minmax(3ch, auto);
   }
 
   .table-footer .raise-stepper input[type='range'] {
     min-width: 0;
-    height: 30px;
+    height: var(--phone-raise-height);
   }
 
   .table-footer .raise-presets {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 3px;
   }
 
@@ -115,14 +125,18 @@
     inline-size: auto;
   }
 
-  .table-footer :is(.raise-step, .raise-presets button) {
-    min-height: 30px;
-    padding: 1px 3px;
+  .table-footer .raise-step,
+  .table-footer .raise-presets button:nth-child(n) {
+    min-height: var(--phone-raise-height);
+    min-width: 0;
+    padding: 1px 2px;
+    font-size: inherit;
+    line-height: 1.1;
   }
 
   .table-footer .action-grid {
-    grid-template-rows: 37px;
-    gap: 3px;
+    grid-template-rows: var(--phone-move-height);
+    gap: 6px;
   }
 
   .table-footer .action-grid > :is(.fold, .call, .raise) {
@@ -131,17 +145,26 @@
   }
 
   .felt {
-    --corner-inset: 6px;
+    --corner-inset: clamp(11px, calc(var(--phone-width) * .026), 32px);
     --chip-width: 12px;
     width: 100%;
     min-width: 0;
-    height: max(170px, calc(var(--phone-height) - var(--phone-safe-top) - var(--phone-safe-bottom) - 51px - var(--table-status-height)));
-    border-radius: 8px;
+    height: max(132px, calc(var(--phone-height) - var(--phone-safe-top) - var(--phone-safe-bottom)
+      - var(--phone-header-height) - var(--phone-raise-height) - var(--phone-move-height) - 24px - var(--table-status-height)));
+    border-radius: 0;
     background-size: 100% 100%;
   }
 
   .felt .table-corner {
     font-size: 10px;
+  }
+
+  .felt :is(.table-round, .table-players) {
+    inset-block-start: 7px;
+  }
+
+  .felt :is(.table-status, .hand-status) {
+    inset-block-end: 4px;
   }
 
   .felt :is(.table-stakes, .table-players strong, .table-hand-cards strong) {
@@ -181,14 +204,23 @@
 
   .felt .top-seat {
     --seat-y: 16%;
-    --wager-y: 26%;
+    --wager-x: 44%;
+    --wager-y: 24%;
     --role-y: 25%;
   }
 
+  .felt .top-seat .seat-wager {
+    top: calc(var(--wager-y) + 3px);
+  }
+
+  .felt .top-seat .chip-scatter {
+    --chip-width: clamp(7px, calc(var(--phone-height) * .023), 10px);
+  }
+
   .felt .side-seat {
-    --seat-x: calc(50% + var(--seat-side) * 41%);
+    --seat-x: calc(50% + var(--seat-side) * 36%);
     --seat-y: 51%;
-    --wager-x: calc(50% + var(--seat-side) * 31%);
+    --wager-x: calc(50% + var(--seat-side) * 24.5%);
     --wager-y: 53%;
     --role-x: var(--wager-x);
     --role-y: 45%;
@@ -209,27 +241,26 @@
   }
 
   .felt .bet-spot {
-    --pocket-width: clamp(18px, 4.2cqi, 25px);
-    --pocket-height: clamp(25px, 6cqi, 34px);
+    --pocket-width: clamp(17px, calc(var(--phone-height) * .064), 30px);
+    --pocket-height: clamp(22px, calc(var(--phone-height) * .083), 40px);
     --avatar-overlap: 8px;
     width: clamp(54px, 13.5cqi, 78px);
   }
 
   .felt .hero-seat .bet-spot {
-    --pocket-width: clamp(21px, 5.2cqi, 30px);
-    --pocket-height: clamp(29px, 7.3cqi, 42px);
+    --pocket-width: clamp(21px, calc(var(--phone-height) * .083), 36px);
+    --pocket-height: clamp(28px, calc(var(--phone-height) * .106), 48px);
     width: clamp(67px, 15cqi, 90px);
   }
 
   .felt .seat-info {
-    --avatar-size: clamp(25px, 6.7cqi, 40px);
-    min-height: 24px;
+    --avatar-size: clamp(24px, calc(var(--phone-height) * .105), 46px);
+    min-height: clamp(22px, calc(var(--phone-height) * .074), 34px);
     padding: 2px calc(var(--avatar-overlap) + 2px) 2px 5px;
   }
 
   .felt .hero-seat .seat-info {
-    --avatar-size: clamp(32px, 8.3cqi, 48px);
-    min-height: 30px;
+    --avatar-size: clamp(28px, calc(var(--phone-height) * .117), 52px);
   }
 
   .felt .hero-profile-label {
@@ -244,16 +275,16 @@
   }
 
   .felt .right-seat :is(.seat-info, .seat-position) {
-    padding-inline: calc(var(--avatar-overlap) + 2px) 5px;
+    padding-inline: 5px calc(var(--avatar-overlap) + 2px);
   }
 
   .felt .right-seat :is(.seat-avatar, .turn-clock) {
-    inset-inline: auto calc(100% - var(--avatar-overlap));
+    inset-inline: calc(100% - var(--avatar-overlap)) auto;
   }
 
   .felt .right-seat .avatar-action {
-    inset-inline: auto var(--action-anchor);
-    translate: 50% 0;
+    inset-inline: var(--action-anchor) auto;
+    translate: -50% 0;
   }
 
   .felt :is(.seat-name, .money, .seat-position, .seat-info .avatar-action) {
@@ -303,7 +334,7 @@
   }
 
   .board-meta {
-    bottom: calc(100% + 4px);
+    bottom: calc(100% + 1px);
     gap: 2px;
   }
 
@@ -314,8 +345,8 @@
   .board .card {
     --face-rank: clamp(14px, 4.6cqi, 23px);
     --face-suit: clamp(8px, 2.4cqi, 12px);
-    width: clamp(21px, 6.9cqi, 36px);
-    height: clamp(30px, 9.5cqi, 49px);
+    width: clamp(22px, calc(var(--phone-height) * .09), 40px);
+    height: clamp(28px, calc(var(--phone-height) * .115), 53px);
   }
 
   .felt .deal-deck.card {
@@ -325,7 +356,20 @@
   }
 
   .felt .pot-value {
+    inline-size: 4.5ch;
     font-size: 14px;
+  }
+
+  .felt .pot-display {
+    --chip-width: clamp(8px, calc(var(--phone-height) * .025), 12px);
+    grid-template-columns: calc(3 * var(--chip-width) + 6px) max-content max-content;
+    gap: 5px;
+    block-size: clamp(19px, calc(var(--phone-height) * .061), 30px);
+    padding: 1px 8px;
+  }
+
+  .felt .pot-label {
+    font-size: 11px;
   }
 
   .felt .street {
@@ -341,39 +385,303 @@
     max-block-size: calc(var(--phone-height) - var(--phone-safe-top) - var(--phone-safe-bottom) - 12px);
   }
 
+  #game-setup, #player-profile {
+    width: calc(var(--phone-width) - 14px);
+    height: calc(var(--phone-height) - 14px);
+  }
+
   #game-setup {
-    width: min(620px, calc(var(--phone-width) - 12px));
-    padding: 10px 14px;
+    --setup-control: clamp(22px, calc(var(--phone-height) * .08), 44px);
+    --setup-gap: clamp(4px, calc(var(--phone-height) * .015), 8px);
+    --setup-portrait-size: clamp(68px, calc(var(--phone-height) * .37), 172px);
+    padding: clamp(8px, calc(var(--phone-height) * .035), 18px) clamp(13px, calc(var(--phone-width) * .024), 25px);
+    font-size: clamp(11px, calc(var(--phone-height) * .034), 15px);
+    scrollbar-width: thin;
+    scrollbar-color: #347385 transparent;
   }
 
-  #game-setup .setup-fields {
+  #game-setup[open] {
+    display: grid;
+    grid-template-areas: 'brand stakes' 'account buy-in' 'help players' 'links backs' 'links start';
+    grid-template-columns: minmax(0, .94fr) minmax(0, 1fr);
+    grid-template-rows: repeat(3, auto) minmax(min-content, 1fr) auto;
+    gap: var(--setup-gap) clamp(20px, calc(var(--phone-width) * .044), 46px);
+  }
+
+  #game-setup > .dialog-motifs {
+    background: linear-gradient(#1d7086, #104350, #1d7086) 48% center / 1px calc(100% - 20px) no-repeat;
+  }
+
+  #game-setup :is(#setup-form, .setup-fields) {
+    display: contents;
+  }
+
+  #game-setup > .setup-heading {
+    position: static;
+    grid-area: brand;
+    margin: 0;
+    padding-block: 0 var(--setup-gap);
+  }
+
+  .setup-heading .setup-brand {
+    flex: none;
+    width: 66%;
+    max-width: none;
+  }
+
+  #game-setup :is(#setup-sound, #close-setup) {
+    position: absolute;
+    inset-block-start: clamp(5px, calc(var(--phone-height) * .016), 10px);
+    inset-inline-end: clamp(10px, calc(var(--phone-width) * .018), 21px);
+    width: var(--setup-control);
+    height: var(--setup-control);
+  }
+
+  #game-setup #setup-sound:has(+ #close-setup:not([hidden])) {
+    inset-inline-end: calc(clamp(10px, calc(var(--phone-width) * .018), 21px) + var(--setup-control) + 7px);
+  }
+
+  #game-setup .avatar-portrait-frame {
+    inset: var(--setup-gap) auto auto calc(48% - var(--setup-portrait-size) - 7px);
+    width: var(--setup-portrait-size);
+    border: 2px solid #308994;
+    border-radius: 50%;
+    box-shadow: 0 0 15px #0dc4da24;
+  }
+
+  #setup-portrait, #profile-avatar-preview {
+    mask-image: none;
+    filter: none;
+  }
+
+  #setup-portrait {
+    inset: 0;
+  }
+
+  #game-setup .setup-account {
+    position: relative;
+    grid-area: account;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 4px 9px;
+    width: 70%;
+    margin: 0;
   }
 
-  #game-setup .setup-heading, #game-setup .setup-account {
-    margin-block-end: 6px;
+  #game-setup .setup-account-label {
+    margin-block-end: 3px;
+    font-size: inherit;
   }
 
-  #game-setup :is(.stake-choice, .setup-profile, .setup-bankroll, .zone-art-button) {
-    min-block-size: 32px;
+  #game-setup .setup-help { grid-area: help; }
+  #game-setup .setup-stakes { grid-area: stakes; }
+  #game-setup .setup-buy-in { grid-area: buy-in; }
+  #game-setup .setup-player-control { grid-area: players; }
+
+  #game-setup .setup-help-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  #player-profile {
-    width: min(640px, calc(var(--phone-width) - 12px));
+  #game-setup :is(.setup-player-control, .setup-buy-in) .setup-slider-row {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  #game-setup :is(.setup-player-control, .setup-buy-in) .raise-stepper {
+    --raise-step-size: var(--setup-control);
+  }
+
+  #game-setup .raise-stepper input {
+    height: var(--setup-control);
+  }
+
+  #game-setup .setup-backs {
+    grid-area: backs;
+    margin: 0;
+  }
+
+  #game-setup fieldset legend {
+    margin-block-end: 3px;
+    line-height: 1.15;
+  }
+
+  #game-setup .setup-back-options {
+    gap: var(--setup-gap);
+  }
+
+  #game-setup .setup-back-option {
+    min-block-size: clamp(30px, calc(var(--phone-height) * .132), 61px);
+    gap: 2px;
+    padding: 3px;
+    font-size: clamp(9px, calc(var(--phone-height) * .027), 12px);
+    line-height: 1.1;
+  }
+
+  #game-setup .setup-back-preview {
+    width: clamp(12px, calc(var(--phone-height) * .055), 26px);
+    height: clamp(16px, calc(var(--phone-height) * .073), 34px);
+  }
+
+  #game-setup .setup-controls {
+    grid-area: start;
+    margin: 0;
+  }
+
+  #game-setup .setup-actions {
+    grid-area: links;
+    align-content: start;
+    gap: var(--setup-gap);
+    margin: max(var(--setup-gap), calc(var(--phone-height) * .033)) 0 0;
+    padding-block-start: max(var(--setup-gap), calc(var(--phone-height) * .036));
+  }
+
+  #open-history {
+    grid-column: 1 / -1;
+  }
+
+  #game-setup > .menu-status { grid-column: 1 / -1; }
+
+  #game-setup :is(.stake-choice, .setup-profile, .setup-bankroll, .raise-step, .setup-actions .zone-art-button) {
+    min-block-size: var(--setup-control);
+    font-size: inherit;
+  }
+
+  #game-setup .setup-controls .zone-art-button {
+    min-block-size: calc(var(--setup-control) + 9px);
+    font-size: clamp(14px, calc(var(--phone-height) * .048), 22px);
   }
 
   .zone-dialog-heading.profile-header {
     grid-template-columns: minmax(0, 1fr) auto auto;
-    padding: 8px 12px;
+    padding: clamp(5px, calc(var(--phone-height) * .019), 11px) clamp(10px, calc(var(--phone-width) * .025), 24px);
+  }
+
+  .profile-header h2 {
+    font-size: clamp(18px, calc(var(--phone-height) * .057), 27px);
   }
 
   .profile-actions {
     grid-column: auto;
   }
 
+  .profile-actions .zone-art-button,
+  .profile-header .zone-close {
+    min-height: clamp(24px, calc(var(--phone-height) * .077), 38px);
+  }
+
   .profile-header .zone-close {
     grid-area: auto;
+    width: clamp(26px, calc(var(--phone-height) * .09), 40px);
+    height: auto;
+  }
+
+  .profile-dialog .profile-form {
+    display: grid;
+    grid-template-areas: 'portrait gallery';
+    grid-template-columns: minmax(0, 27%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: clamp(12px, calc(var(--phone-width) * .026), 28px);
+    flex: 1;
+    padding: 8px clamp(12px, calc(var(--phone-width) * .025), 27px) 10px;
+    overflow: hidden;
+  }
+
+  .profile-intro {
+    grid-area: portrait;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-block-size: 0;
+    padding: 7px clamp(7px, calc(var(--phone-width) * .016), 15px);
+    border: 1px solid #367381;
+    border-radius: 9px;
+    background: linear-gradient(155deg, #062e37a8, #071e2a66);
+  }
+
+  #profile-avatar-preview {
+    order: -1;
+    align-self: center;
+    flex: none;
+    width: min(100%, calc(var(--phone-height) * .48), var(--avatar-native-size, 346px));
+    margin: 0;
+    translate: none;
+    z-index: auto;
+    border: 2px solid #2db8be;
+    border-radius: 50%;
+    box-shadow: 0 0 12px #30d4e031;
+    opacity: .96;
+  }
+
+  .profile-name-field {
+    width: 100%;
+    justify-items: start;
+    text-align: start;
+  }
+
+  .profile-name-field label {
+    margin-block-end: 3px;
+    font-size: clamp(11px, calc(var(--phone-height) * .034), 16px);
+  }
+
+  .profile-form input[type='text'] {
+    inline-size: 100%;
+    min-height: clamp(25px, calc(var(--phone-height) * .08), 38px);
+  }
+
+  .profile-avatar-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  #profile-avatar-gallery {
+    grid-area: gallery;
+    min-width: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #347385 transparent;
+  }
+
+  #profile-avatar-gallery .profile-avatar-presets {
+    --category-width: clamp(70px, 16%, 111px);
+    position: relative;
+    margin: 0;
+    padding: 2px 1px 2px var(--category-width);
+    border-block-start: 1px solid #286675;
+  }
+
+  .profile-avatar-presets legend {
+    position: absolute;
+    inset: 50% auto auto 1px;
+    translate: 0 -50%;
+    width: var(--category-width);
+    margin: 0;
+    padding: 0;
+    font-size: clamp(10px, calc(var(--phone-height) * .034), 16px);
+  }
+
+  .profile-avatar-row {
+    gap: 3px;
+  }
+
+  .profile-avatar-options {
+    --gallery-avatar: clamp(26px, calc(var(--phone-height) * .13), 64px);
+    --gallery-gap: max(3px, calc((100% - 6 * var(--gallery-avatar)) / 5));
+    gap: var(--gallery-gap);
+    padding: 3px;
+  }
+
+  .profile-avatar-option {
+    flex-basis: min(var(--gallery-avatar), calc((100% - 5 * var(--gallery-gap)) / 6));
+  }
+
+  .profile-avatar-arrow {
+    width: clamp(20px, calc(var(--phone-height) * .062), 30px);
+    min-height: clamp(21px, calc(var(--phone-height) * .061), 30px);
+    padding: 0;
+    font-size: 19px;
   }
 }
 

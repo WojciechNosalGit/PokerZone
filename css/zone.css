@@ -502,7 +502,7 @@ dialog.zone-surface::after {
   opacity: 0.22;
 }
 
-#game-setup > :is(.setup-heading, #setup-form, .setup-actions, .menu-status) {
+#game-setup > :where(.setup-heading, #setup-form, .setup-actions, .menu-status) {
   position: relative;
   z-index: 1;
 }
