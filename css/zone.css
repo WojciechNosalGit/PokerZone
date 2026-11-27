@@ -1349,6 +1349,10 @@ dialog.zone-surface::after {
   font-size: 12px;
 }
 
+#raiseBlindIndicator {
+  display: none;
+}
+
 .raise-stepper {
   --raise-step-size: 25px;
   grid-template-columns: var(--raise-step-size) minmax(0, 1fr) var(--raise-step-size);

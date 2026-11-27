@@ -81,8 +81,8 @@
   .table-panel > .table-footer {
     --side-gap: clamp(4px, calc(var(--phone-height) * .014), 8px);
     --side-control-height: clamp(21px, calc(var(--phone-height) * .077), 34px);
-    --side-action-height: clamp(27px, calc(var(--phone-height) * .115), 51px);
     --side-action-font: clamp(13px, calc(var(--phone-height) * .047), 21px);
+    --phone-bet-width: clamp(34px, calc(var(--phone-height) * .12), 50px);
     padding-block-start: 4px;
     padding-inline-end: 4px;
   }
@@ -115,9 +115,12 @@
     min-height: 30px;
   }
 
-  .tutorial-hand-guide {
-    inset-block-start: 24%;
-    max-block-size: calc(76% - 8px);
+  .felt > .tutorial-hand-guide {
+    inset-block-start: 16%;
+    inline-size: min(285px, calc(50% - 2.5 * var(--phone-board-card-width)
+      - 2 * var(--phone-board-gap) - var(--corner-inset) - 7px));
+    min-block-size: min(50%, 130px);
+    max-block-size: calc(84% - 22px);
   }
 
   .tutorial-overview:is([data-target="table-round"], [data-target="table-players"]) {
@@ -130,19 +133,84 @@
   }
 
   .table-footer .controls {
+    display: grid;
+    grid-template:
+      'wager actions' minmax(0, 1fr)
+      'presets presets' auto / var(--phone-bet-width) minmax(0, 1fr);
+    gap: var(--side-gap);
+    block-size: calc(var(--side-table-height) - 8px);
     padding: 7px 8px;
   }
 
   .table-footer .raise-controls {
+    grid-area: 1 / 1 / -1 / -1;
+    grid-template: subgrid / subgrid;
+    align-items: stretch;
+    margin: 0;
     font-size: clamp(10px, calc(var(--phone-height) * .033), 15px);
   }
 
-  .table-footer .raise-stepper {
-    gap: 3px;
+  .table-footer :is(.raise-stepper-secondary, .raise-stepper .raise-step, #raiseBlindPreset) {
+    display: none;
   }
 
-  .table-footer .raise-stepper:has(output) {
-    grid-template-columns: var(--raise-step-size) minmax(0, 1fr) var(--raise-step-size) max-content;
+  .table-footer .raise-stepper:not(.raise-stepper-secondary) {
+    grid-area: 1 / 1;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    margin-block: 22px calc(var(--phone-bet-width) + 4px);
+  }
+
+  .table-footer #raiseSlider {
+    appearance: auto;
+    writing-mode: vertical-lr;
+    direction: rtl;
+    inline-size: 100%;
+    block-size: 22px;
+    accent-color: #d9ad60;
+  }
+
+  .table-footer #raiseSlider::-webkit-slider-runnable-track {
+    inline-size: auto;
+    block-size: auto;
+    border: 0;
+    background: none;
+  }
+
+  .table-footer #raiseSlider::-webkit-slider-thumb {
+    margin: 0;
+  }
+
+  .raise-controls > :is(#raiseTo, #raiseBlindIndicator) {
+    grid-area: 1 / 1;
+    justify-self: center;
+  }
+
+  .raise-controls > #raiseTo {
+    align-self: start;
+    inline-size: auto;
+    font-size: clamp(12px, calc(var(--phone-height) * .041), 17px);
+  }
+
+  .raise-controls > #raiseBlindIndicator {
+    display: grid;
+    align-self: end;
+    place-items: center;
+    inline-size: min(100%, 38px);
+    aspect-ratio: 1;
+    border: 1px dashed #8f7950;
+    border-radius: 50%;
+    background: #1c2c30;
+    color: #e3c995;
+    font-size: clamp(8px, calc(var(--phone-height) * .029), 11px);
+    letter-spacing: -.025em;
+  }
+
+  .table-footer .raise-presets {
+    grid-area: 2 / 1 / 3 / -1;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
   }
 
   .table-footer .raise-presets button:nth-child(n) {
@@ -152,9 +220,19 @@
     line-height: 1.1;
   }
 
+  .table-footer .action-grid {
+    grid-area: actions;
+    grid-template:
+      'fold' minmax(0, 1fr)
+      'call' minmax(0, 1fr)
+      'raise' minmax(0, 1fr) / minmax(0, 1fr);
+  }
+
   .felt {
     --corner-inset: clamp(11px, calc(var(--phone-width) * .026), 32px);
     --chip-width: 12px;
+    --phone-board-card-width: clamp(22px, calc(var(--phone-height) * .09), 40px);
+    --phone-board-gap: 4px;
     width: 100%;
     min-width: 0;
     height: var(--side-table-height);
@@ -244,10 +322,14 @@
     --role-y: 70%;
   }
 
+  .felt .lower-seat.right-seat {
+    --wager-x: max(79%, calc(70% + 60px));
+  }
+
   .felt .hero-seat {
     --seat-y: 83%;
-    --wager-x: 60%;
-    --wager-y: 72%;
+    --wager-x: 70%;
+    --wager-y: 68%;
     --role-x: 39%;
     --role-y: 67%;
   }
@@ -304,6 +386,19 @@
     line-height: 1.1;
   }
 
+  .felt .table-seat:not(.hero-seat) .avatar-action {
+    padding: 2px 5px;
+    font-size: clamp(8px, 1.85cqi, 10px);
+  }
+
+  .tutorial-active .felt .seat-chat-bubble:not(.seat-chat-reaction) {
+    max-inline-size: min(190px, 46cqi);
+    padding: 4px 7px;
+    border-radius: 10px;
+    font-size: clamp(10px, calc(var(--phone-height) * .035), 12px);
+    line-height: 1.25;
+  }
+
   .felt .seat-position {
     min-height: 12px;
   }
@@ -351,13 +446,13 @@
   }
 
   .board {
-    gap: 4px;
+    gap: var(--phone-board-gap);
   }
 
   .board .card {
     --face-rank: clamp(14px, 4.6cqi, 23px);
     --face-suit: clamp(8px, 2.4cqi, 12px);
-    width: clamp(22px, calc(var(--phone-height) * .09), 40px);
+    width: var(--phone-board-card-width);
     height: clamp(28px, calc(var(--phone-height) * .115), 53px);
   }
 
