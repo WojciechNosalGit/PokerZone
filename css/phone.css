@@ -1,0 +1,431 @@
+@media (pointer: coarse) and (max-width: 560px), (pointer: coarse) and (max-height: 560px) {
+  :root {
+    --phone-width: 100dvw;
+    --phone-height: 100dvh;
+    --phone-safe-top: env(safe-area-inset-top, 0px);
+    --phone-safe-right: env(safe-area-inset-right, 0px);
+    --phone-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --phone-safe-left: env(safe-area-inset-left, 0px);
+  }
+
+  .wrap {
+    --table-status-height: 0px;
+    padding: calc(4px + var(--phone-safe-top)) calc(6px + var(--phone-safe-right))
+      calc(16px + var(--phone-safe-bottom)) calc(6px + var(--phone-safe-left));
+  }
+
+  .wrap:has(.online-table-status:not([hidden])) {
+    --table-status-height: 16px;
+  }
+
+  .topline {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 7px;
+    min-height: 34px;
+    margin-bottom: 4px;
+    padding: 0 2px;
+  }
+
+  .topline .zone-brand {
+    width: clamp(95px, calc(var(--phone-width) * .18), 170px);
+  }
+
+  .header-actions {
+    gap: 5px;
+  }
+
+  .header-actions .game-menu-button {
+    min-height: 32px;
+    padding: 3px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .header-bankroll {
+    gap: 5px;
+    padding: 2px 8px;
+    font-size: 12px;
+  }
+
+  :is(.tutorial-active, .online-active) .header-bankroll {
+    display: none;
+  }
+
+  .online-table-status {
+    margin: 0 0 2px;
+    font-size: 11px;
+    line-height: 14px;
+  }
+
+  .table-panel {
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .table-panel:has(> .table-footer) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(156px, calc(var(--phone-width) * .235), 222px);
+    align-items: center;
+    gap: 6px;
+  }
+
+  .table-footer {
+    grid-area: 1 / 2;
+    width: 100%;
+  }
+
+  .table-panel > .tutorial-coach {
+    position: static;
+    grid-column: 1 / -1;
+    width: auto;
+  }
+
+  .table-footer .controls {
+    margin: 0;
+    padding: 6px;
+  }
+
+  .table-footer .raise-controls {
+    grid-template: 'primary amount' auto 'secondary amount' auto 'presets presets' auto / minmax(0, 1fr) max-content;
+    gap: 3px 4px;
+    margin-bottom: 5px;
+  }
+
+  .table-footer .raise-stepper {
+    --raise-step-size: 28px;
+    gap: 2px;
+  }
+
+  .table-footer .raise-stepper:has(output) {
+    grid-template-columns: var(--raise-step-size) minmax(0, 1fr) var(--raise-step-size) 5ch;
+  }
+
+  .table-footer .raise-stepper input[type='range'] {
+    min-width: 0;
+    height: 30px;
+  }
+
+  .table-footer .raise-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .table-footer .raise-presets #raiseBlindPreset {
+    inline-size: auto;
+  }
+
+  .table-footer :is(.raise-step, .raise-presets button) {
+    min-height: 30px;
+    padding: 1px 3px;
+  }
+
+  .table-footer .action-grid {
+    grid-template-rows: 37px;
+    gap: 3px;
+  }
+
+  .table-footer .action-grid > :is(.fold, .call, .raise) {
+    padding: 2px 3px;
+    font-size: clamp(11px, calc(var(--phone-width) * .016), 14px);
+  }
+
+  .felt {
+    --corner-inset: 6px;
+    --chip-width: 12px;
+    width: 100%;
+    min-width: 0;
+    height: max(170px, calc(var(--phone-height) - var(--phone-safe-top) - var(--phone-safe-bottom) - 51px - var(--table-status-height)));
+    border-radius: 8px;
+    background-size: 100% 100%;
+  }
+
+  .felt .table-corner {
+    font-size: 10px;
+  }
+
+  .felt :is(.table-stakes, .table-players strong, .table-hand-cards strong) {
+    font-size: 11px;
+  }
+
+  .felt .table-hand-cards strong {
+    min-inline-size: 19px;
+    min-block-size: 21px;
+  }
+
+  .felt .table-players {
+    gap: 4px;
+    padding: 2px 4px;
+  }
+
+  .felt .table-player-icon {
+    width: 11px;
+    height: 12px;
+  }
+
+  .felt .table-seat {
+    --seat-x: 50%;
+  }
+
+  .felt :is(.upper-seat, .lower-seat) {
+    --seat-x: calc(50% + var(--seat-side) * 31%);
+    --wager-x: calc(50% + var(--seat-side) * 25%);
+    --role-x: calc(50% + var(--seat-side) * 35%);
+  }
+
+  .felt .upper-seat {
+    --seat-y: 20%;
+    --wager-y: 33%;
+    --role-y: 31%;
+  }
+
+  .felt .top-seat {
+    --seat-y: 16%;
+    --wager-y: 26%;
+    --role-y: 25%;
+  }
+
+  .felt .side-seat {
+    --seat-x: calc(50% + var(--seat-side) * 41%);
+    --seat-y: 51%;
+    --wager-x: calc(50% + var(--seat-side) * 31%);
+    --wager-y: 53%;
+    --role-x: var(--wager-x);
+    --role-y: 45%;
+  }
+
+  .felt .lower-seat {
+    --seat-y: 82%;
+    --wager-y: 67%;
+    --role-y: 70%;
+  }
+
+  .felt .hero-seat {
+    --seat-y: 83%;
+    --wager-x: 60%;
+    --wager-y: 72%;
+    --role-x: 39%;
+    --role-y: 67%;
+  }
+
+  .felt .bet-spot {
+    --pocket-width: clamp(18px, 4.2cqi, 25px);
+    --pocket-height: clamp(25px, 6cqi, 34px);
+    --avatar-overlap: 8px;
+    width: clamp(54px, 13.5cqi, 78px);
+  }
+
+  .felt .hero-seat .bet-spot {
+    --pocket-width: clamp(21px, 5.2cqi, 30px);
+    --pocket-height: clamp(29px, 7.3cqi, 42px);
+    width: clamp(67px, 15cqi, 90px);
+  }
+
+  .felt .seat-info {
+    --avatar-size: clamp(25px, 6.7cqi, 40px);
+    min-height: 24px;
+    padding: 2px calc(var(--avatar-overlap) + 2px) 2px 5px;
+  }
+
+  .felt .hero-seat .seat-info {
+    --avatar-size: clamp(32px, 8.3cqi, 48px);
+    min-height: 30px;
+  }
+
+  .felt .hero-profile-label {
+    display: none;
+  }
+
+  .felt .hero-chat-button {
+    inset: 100% auto auto 50%;
+    translate: -50% 1px;
+    padding: 2px 4px;
+    font-size: 10px;
+  }
+
+  .felt .right-seat :is(.seat-info, .seat-position) {
+    padding-inline: calc(var(--avatar-overlap) + 2px) 5px;
+  }
+
+  .felt .right-seat :is(.seat-avatar, .turn-clock) {
+    inset-inline: auto calc(100% - var(--avatar-overlap));
+  }
+
+  .felt .right-seat .avatar-action {
+    inset-inline: auto var(--action-anchor);
+    translate: 50% 0;
+  }
+
+  .felt :is(.seat-name, .money, .seat-position, .seat-info .avatar-action) {
+    font-size: clamp(9px, 2.45cqi, 12px);
+    line-height: 1.1;
+  }
+
+  .felt .seat-position {
+    min-height: 12px;
+  }
+
+  .felt .seat-action {
+    min-height: 3px;
+  }
+
+  .felt .pocket-covered + .seat-info {
+    margin-top: -12px;
+  }
+
+  .felt .pocket-cards .card {
+    --face-rank: clamp(11px, 3.5cqi, 19px);
+    --face-suit: clamp(7px, 2.2cqi, 11px);
+  }
+
+  .felt .seat-role-markers .position-badge {
+    min-width: 16px;
+    height: 16px;
+    font-size: 8px;
+  }
+
+  .felt .hero-seat .pos-d {
+    translate: none;
+  }
+
+  .felt .chip-scatter {
+    --chip-width: clamp(8px, 2cqi, 12px);
+    --chip-rim-width: 1px;
+  }
+
+  .felt .spot-chips {
+    min-height: 18px;
+    font-size: 10px;
+  }
+
+  .felt-center {
+    inset-block-start: 3%;
+  }
+
+  .board-meta {
+    bottom: calc(100% + 4px);
+    gap: 2px;
+  }
+
+  .board {
+    gap: 4px;
+  }
+
+  .board .card {
+    --face-rank: clamp(14px, 4.6cqi, 23px);
+    --face-suit: clamp(8px, 2.4cqi, 12px);
+    width: clamp(21px, 6.9cqi, 36px);
+    height: clamp(30px, 9.5cqi, 49px);
+  }
+
+  .felt .deal-deck.card {
+    left: calc(100% + 7px);
+    width: clamp(16px, 4.4cqi, 25px);
+    height: clamp(22px, 6.1cqi, 35px);
+  }
+
+  .felt .pot-value {
+    font-size: 14px;
+  }
+
+  .felt .street {
+    font-size: 10px;
+  }
+
+  .session-panels {
+    grid-template-columns: 1fr;
+  }
+
+  :is(.setup-dialog.zone-dialog, .profile-dialog, .loss-dialog) {
+    max-inline-size: calc(var(--phone-width) - var(--phone-safe-left) - var(--phone-safe-right) - 12px);
+    max-block-size: calc(var(--phone-height) - var(--phone-safe-top) - var(--phone-safe-bottom) - 12px);
+  }
+
+  #game-setup {
+    width: min(620px, calc(var(--phone-width) - 12px));
+    padding: 10px 14px;
+  }
+
+  #game-setup .setup-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 9px;
+  }
+
+  #game-setup .setup-heading, #game-setup .setup-account {
+    margin-block-end: 6px;
+  }
+
+  #game-setup :is(.stake-choice, .setup-profile, .setup-bankroll, .zone-art-button) {
+    min-block-size: 32px;
+  }
+
+  #player-profile {
+    width: min(640px, calc(var(--phone-width) - 12px));
+  }
+
+  .profile-header {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    padding: 8px 12px;
+  }
+
+  .profile-actions {
+    grid-column: auto;
+  }
+
+  .profile-header .zone-close {
+    grid-area: auto;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 560px) and (orientation: portrait) {
+  :root {
+    --phone-width: 100dvh;
+    --phone-height: 100dvw;
+    --phone-safe-top: env(safe-area-inset-right, 0px);
+    --phone-safe-right: env(safe-area-inset-bottom, 0px);
+    --phone-safe-bottom: env(safe-area-inset-left, 0px);
+    --phone-safe-left: env(safe-area-inset-top, 0px);
+  }
+
+  html, body {
+    overflow: hidden;
+  }
+
+  .wrap {
+    position: fixed;
+    inset: 0 auto auto 0;
+    width: var(--phone-width);
+    max-width: none;
+    height: var(--phone-height);
+    margin: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    transform: translateX(var(--phone-height)) rotate(90deg);
+    transform-origin: top left;
+  }
+
+  dialog {
+    position: fixed;
+    inset: 50% auto auto 50%;
+    margin: 0;
+    translate: -50% -50%;
+    rotate: 90deg;
+  }
+
+  .setup-dialog.zone-dialog {
+    width: min(540px, calc(var(--phone-width) - 12px));
+  }
+
+  #online-dialog, #session-dialog, #confirm-dialog {
+    width: min(465px, calc(var(--phone-width) - 12px));
+  }
+
+  #table-chat-dialog, #lossDialog {
+    width: min(370px, calc(var(--phone-width) - 12px));
+  }
+
+  .zone-tooltip[popover] {
+    rotate: 90deg;
+    transform-origin: top left;
+  }
+}

@@ -17,20 +17,24 @@ function bindPokerTooltips(tooltip) {
 
   function position() {
     if (!active) return;
-    const { left, top, right, bottom, width } = active.getBoundingClientRect();
-    const { clientWidth, clientHeight } = document.documentElement;
+    const { left, top, right, bottom, width } = pokerLayout.bounds(active);
+    const { width: clientWidth, height: clientHeight } = pokerLayout.viewport();
     if (right <= 0 || bottom <= 0 || left >= clientWidth || top >= clientHeight) {
       hide();
       return;
     }
-    const { width: tipWidth, height: tipHeight } = tooltip.getBoundingClientRect();
+    const { offsetWidth: tipWidth, offsetHeight: tipHeight } = tooltip;
     const margin = 8;
     const gap = 5;
     const x = left + (width - tipWidth) / 2;
     const below = bottom + gap;
     const y = below + tipHeight <= clientHeight - margin ? below : top - gap - tipHeight;
-    tooltip.style.left = `${Math.max(margin, Math.min(x, clientWidth - tipWidth - margin))}px`;
-    tooltip.style.top = `${Math.max(margin, Math.min(y, clientHeight - tipHeight - margin))}px`;
+    const position = pokerLayout.screenPoint(
+      Math.max(margin, Math.min(x, clientWidth - tipWidth - margin)),
+      Math.max(margin, Math.min(y, clientHeight - tipHeight - margin))
+    );
+    tooltip.style.left = `${position.x}px`;
+    tooltip.style.top = `${position.y}px`;
   }
 
   function show(trigger) {

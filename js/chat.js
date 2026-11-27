@@ -32,8 +32,8 @@ function createPokerChat(root, dialog, game, onlineTable = () => null) {
     if (!avatar) return;
     const { bubble } = message;
     if (bubble.parentElement !== stage) stage.append(bubble);
-    const table = stage.getBoundingClientRect();
-    const anchor = avatar.getBoundingClientRect();
+    const table = pokerLayout.bounds(stage);
+    const anchor = pokerLayout.bounds(avatar);
     const width = bubble.offsetWidth;
     const height = bubble.offsetHeight;
     const margin = 7;

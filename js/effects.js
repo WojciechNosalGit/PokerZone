@@ -107,8 +107,8 @@ function createPokerEffects(root) {
   }
 
   function centerOf(element) {
-    const { x, y, width, height } = element.getBoundingClientRect();
-    return { x: x + width / 2, y: y + height / 2 };
+    const { left, top, width, height } = pokerLayout.bounds(element);
+    return { x: left + width / 2, y: top + height / 2 };
   }
 
   function animateDeal(items, {
@@ -262,15 +262,15 @@ function createPokerEffects(root) {
     if (!source || !destination) return;
     const origin = centerOf(source);
     const target = centerOf(destination);
-    const table = stage.getBoundingClientRect();
+    const table = pokerLayout.bounds(stage);
     const dx = target.x - origin.x;
     const dy = target.y - origin.y;
     const lift = Math.min(65, 18 + Math.hypot(dx, dy) / 10);
     const flight = document.createElement('div');
     flight.className = 'table-flight';
     flight.setAttribute('aria-hidden', 'true');
-    flight.style.left = `${origin.x - table.x}px`;
-    flight.style.top = `${origin.y - table.y}px`;
+    flight.style.left = `${origin.x - table.left}px`;
+    flight.style.top = `${origin.y - table.top}px`;
     flight.innerHTML = markup;
     stage.append(flight);
     const motion = flight.animate([
