@@ -539,11 +539,6 @@ button:disabled {
   text-align: start;
 }
 
-.profile-dialog {
-  width: min(640px, calc(100% - 32px));
-  max-block-size: calc(100% - 32px);
-}
-
 .setup-dialog h2 {
   margin: 0 0 16px;
   font-size: 22px;

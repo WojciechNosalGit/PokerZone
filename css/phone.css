@@ -363,7 +363,7 @@
     width: min(640px, calc(var(--phone-width) - 12px));
   }
 
-  .profile-header {
+  .zone-dialog-heading.profile-header {
     grid-template-columns: minmax(0, 1fr) auto auto;
     padding: 8px 12px;
   }

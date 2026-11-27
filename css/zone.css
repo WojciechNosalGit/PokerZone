@@ -293,7 +293,7 @@ dialog.zone-surface::after {
   z-index: -2;
 }
 
-:is(.profile-dialog, .loss-dialog) {
+.loss-dialog {
   isolation: isolate;
 }
 
@@ -1519,12 +1519,11 @@ dialog.zone-surface::after {
   outline-offset: 1px;
 }
 
-.profile-dialog {
+.setup-dialog.profile-dialog {
   --profile-form-padding: 16px;
+  width: min(640px, calc(100% - 28px));
   padding: 0;
   overflow: hidden;
-  border-color: #2f738b;
-  background: radial-gradient(ellipse at 18% 0%, #09434a55, transparent 35%), #081c27;
 }
 
 .profile-dialog[open] {
@@ -1532,19 +1531,16 @@ dialog.zone-surface::after {
   flex-direction: column;
 }
 
-.profile-header {
+.zone-dialog-heading.profile-header {
   position: relative;
   z-index: 1;
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px 13px;
-}
-
-.profile-header h2 {
   margin: 0;
-  font-size: clamp(18px, 3vw, 22px);
+  padding: 12px 16px 13px;
 }
 
 .profile-header .menu-status {
@@ -1672,7 +1668,7 @@ dialog.zone-surface::after {
     margin-bottom: 12px;
   }
 
-  .profile-header {
+  .zone-dialog-heading.profile-header {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
