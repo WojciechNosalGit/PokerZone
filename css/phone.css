@@ -84,10 +84,46 @@
     width: 84%;
   }
 
-  .table-panel > .tutorial-coach {
-    position: static;
-    order: 1;
-    width: 94%;
+  .felt > .tutorial-coach {
+    display: flex;
+    flex-direction: column;
+    inline-size: min(36%, 285px);
+    padding: 6px 9px;
+  }
+
+  .tutorial-coach h2 {
+    font-size: clamp(14px, calc(var(--phone-height) * .045), 18px);
+  }
+
+  .tutorial-coach span,
+  .tutorial-coach button {
+    font-size: 12px;
+  }
+
+  .tutorial-coach p {
+    overflow: auto;
+    font-size: clamp(13px, calc(var(--phone-height) * .04), 16px);
+    line-height: 1.35;
+  }
+
+  .tutorial-coach button {
+    align-self: start;
+    flex-shrink: 0;
+    min-height: 30px;
+  }
+
+  .tutorial-hand-guide {
+    inset-block-start: 24%;
+    max-block-size: calc(76% - 8px);
+  }
+
+  .tutorial-overview:is([data-target="table-round"], [data-target="table-players"]) {
+    max-block-size: calc(var(--phone-height) - var(--phone-header-height) - var(--phone-safe-top)
+      - var(--phone-safe-bottom) - var(--overview-offset) - 8px);
+  }
+
+  .tutorial-overview:is([data-target="table-status"], [data-target="hand-status"]) {
+    max-block-size: calc(100% - var(--overview-offset) - 8px);
   }
 
   .table-footer .controls {

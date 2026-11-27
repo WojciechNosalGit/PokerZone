@@ -843,23 +843,21 @@ dialog.zone-surface::after {
   font-size: 0.875rem;
 }
 
-.tutorial-coach[data-guided] + .table-footer .action-grid > :is(.call, .fold, .raise):enabled {
+.felt:has(> .tutorial-hand-guide[data-guided]) + .table-footer .action-grid > :is(.call, .fold, .raise):enabled {
   --footer-edge: var(--zone-gold);
   filter: brightness(1.15);
 }
 
-@media (min-width: 800px) {
-  .tutorial-active .table-panel {
-    position: relative;
-  }
+.tutorial-hand-guide {
+  position: absolute;
+  z-index: 5;
+  inset-block-start: 32%;
+  inset-inline-start: var(--corner-inset);
+  inline-size: min(36%, 285px);
+}
 
-  .table-panel > .tutorial-coach {
-    position: absolute;
-    z-index: 5;
-    inset-block-start: 32%;
-    inset-inline-start: clamp(18px, 3vw, 40px);
-    width: min(25%, 285px);
-  }
+.felt:has(> .tutorial-overview) {
+  z-index: 1;
 }
 
 .tutorial-spotlight {

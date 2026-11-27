@@ -564,14 +564,14 @@ const pokerView = (() => {
      <div><h2>${escapeHTML(overview.title)}</h2><span>Krok ${overview.step} z ${overview.total}</span></div>
      <p>${escapeHTML(overview.prompt)}</p>
      <button class="zone-art-button" id="tutorial-overview-next" type="button">${overview.step === overview.total ? 'Zagraj rozdanie' : 'Dalej'}</button>
-   </section>` : ''}`;
-      root.innerHTML = `<div class="layout"><div class="table-panel">
- ${feltHTML(state, { pot, seats, extra, handNumber, tutorial, runningOut })}
- ${tutorial && !overview ? `<section class="tutorial-coach"${tutorial.practice ? '' : ' data-guided'} aria-label="Samouczek">
+   </section>` : ''}
+   ${tutorial && !overview ? `<section class="tutorial-coach tutorial-hand-guide"${tutorial.practice ? '' : ' data-guided'} aria-label="Samouczek">
      <div><h2>${escapeHTML(tutorial.title)}</h2><span>Rozdanie ${tutorial.number}${tutorial.total ? ` z ${tutorial.total}` : ''}</span></div>
      <p>${escapeHTML(tutorial.prompt)}</p>
      ${finished && !tutorial.practice ? '<button id="tutorial-replay" class="zone-art-button" type="button">Powtórz rozdanie</button>' : ''}
-   </section>` : ''}
+   </section>` : ''}`;
+      root.innerHTML = `<div class="layout"><div class="table-panel">
+ ${feltHTML(state, { pot, seats, extra, handNumber, tutorial, runningOut })}
  <div class="table-footer">
    <div class="controls zone-surface">${controlsHTML(state, pot, game.minRaiseTo(), outgoing, Boolean(departingNextHand), tutorial, online)}</div>
  </div>
@@ -612,7 +612,7 @@ const pokerView = (() => {
       bindControls(turn, runningOut, tutorial, online);
       startClock(online?.clock);
       find('.log').scrollTop = logScroll;
-      if (finishingOverview) find('#call').focus();
+      if (finishingOverview) find('#call').focus({ preventScroll: true });
       else if (focusedControl) find(focusedControl)?.focus({ preventScroll: true });
     };
   }
