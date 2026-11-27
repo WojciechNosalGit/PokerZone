@@ -85,10 +85,11 @@
   }
 
   .table-panel > .table-footer {
-    --side-gap: clamp(4px, calc(var(--phone-height) * .014), 8px);
+    --side-gap: clamp(8px, calc(var(--phone-height) * .028), 14px);
+    --side-padding: clamp(10px, calc(var(--phone-height) * .042), 17px);
     --side-control-height: clamp(21px, calc(var(--phone-height) * .077), 34px);
     --side-action-font: clamp(13px, calc(var(--phone-height) * .047), 21px);
-    --phone-bet-width: clamp(34px, calc(var(--phone-height) * .12), 50px);
+    --phone-bet-width: clamp(34px, calc(var(--phone-height) * .13), 49px);
     width: 100%;
     padding-block-start: 4px;
     padding-inline-end: 4px;
@@ -147,7 +148,7 @@
     gap: var(--side-gap);
     block-size: calc(var(--side-table-height) - 8px);
     margin: 0;
-    padding: 7px 8px;
+    padding: var(--side-padding);
   }
 
   .table-footer .raise-controls {
@@ -167,7 +168,8 @@
     grid-area: 1 / 1;
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
-    margin-block: 22px calc(var(--phone-bet-width) + 4px);
+    margin-block: clamp(24px, calc(var(--phone-height) * .075), 33px)
+      calc(var(--phone-bet-width) + var(--side-gap) * .6);
   }
 
   .table-footer #raiseSlider {
@@ -205,14 +207,18 @@
     display: grid;
     align-self: end;
     place-items: center;
-    inline-size: min(100%, 38px);
+    inline-size: var(--phone-bet-width);
     aspect-ratio: 1;
-    border: 1px dashed #8f7950;
+    border: 1px solid #bb8a3d;
     border-radius: 50%;
-    background: #1c2c30;
-    color: #e3c995;
-    font-size: clamp(8px, calc(var(--phone-height) * .029), 11px);
-    letter-spacing: -.025em;
+    background:
+      radial-gradient(circle closest-side, #362717 0 60%, #875b26 61% 64%, #e6b85c 66% 69%,
+        transparent 71% 92%, #b68943 94% 96%, #54371a 99%),
+      repeating-conic-gradient(from -8deg, #fff1c0 0 11deg, #e8b85a 11deg 18deg,
+        #815519 19deg 37deg, #d9a550 39deg 45deg);
+    color: #ffe5a2;
+    font-size: clamp(8px, calc(var(--phone-height) * .029), 10.5px);
+    letter-spacing: -.02em;
   }
 
   .table-footer .raise-presets {
@@ -221,14 +227,17 @@
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
     gap: calc(var(--side-gap) * .75);
+    padding-block-start: calc(var(--side-gap) * .55);
+    border-block-start: 1px solid #2b5867;
   }
 
   .table-footer .raise-presets button:nth-child(n) {
     min-width: 0;
-    min-height: var(--side-control-height);
-    padding: 1px 2px;
+    min-height: max(var(--side-control-height), calc(2.2em + 6px));
+    padding: 2px 3px;
     font-size: inherit;
     line-height: 1.1;
+    white-space: normal;
   }
 
   .table-footer .action-grid {
@@ -237,7 +246,7 @@
       'fold' minmax(0, 1fr)
       'call' minmax(0, 1fr)
       'raise' minmax(0, 1fr) / minmax(0, 1fr);
-    gap: var(--side-gap);
+    gap: clamp(10px, calc(var(--phone-height) * .032), 15px);
   }
 
   .table-footer .action-grid > .fold {
