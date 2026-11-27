@@ -156,46 +156,48 @@
       <button class="zone-art-button" id="online-join" type="button">Dołącz kodem</button>
     </div>
     <form id="online-form" hidden>
-      <div class="zone-field"><label for="online-name">Nick przy stole</label><input id="online-name" maxlength="10" required autocomplete="nickname"></div>
+      <div class="zone-field online-name-field"><label for="online-name">Nick przy stole</label><input id="online-name" maxlength="10" required autocomplete="nickname"></div>
       <div class="zone-field" id="online-join-fields" hidden><label for="online-room">Kod zaproszenia</label><input id="online-room" maxlength="10" spellcheck="false" autocomplete="off" autocapitalize="characters"></div>
       <div id="online-create-fields" hidden>
         <fieldset class="setup-stakes">
           <legend>Stawka</legend>
           <div class="stake-options" id="online-stakes"></div>
         </fieldset>
-        <fieldset class="setup-player-control">
-          <legend id="online-player-label">Liczba graczy</legend>
-          <div class="setup-slider-row">
-            <div class="raise-stepper">
-              <button class="raise-step" id="online-players-less" type="button" aria-label="Zmniejsz liczbę graczy">−</button>
-              <input id="online-players" type="range" min="1" max="8" value="4" aria-labelledby="online-player-label">
-              <button class="raise-step" id="online-players-more" type="button" aria-label="Zwiększ liczbę graczy">+</button>
+        <div class="online-table-settings">
+          <fieldset class="setup-player-control">
+            <legend id="online-player-label">Liczba graczy</legend>
+            <div class="setup-slider-row">
+              <div class="raise-stepper">
+                <button class="raise-step" id="online-players-less" type="button" aria-label="Zmniejsz liczbę graczy">−</button>
+                <input id="online-players" type="range" min="1" max="8" value="4" aria-labelledby="online-player-label">
+                <button class="raise-step" id="online-players-more" type="button" aria-label="Zwiększ liczbę graczy">+</button>
+              </div>
+              <output class="setup-buy-in-amount" id="online-player-count" for="online-players"></output>
             </div>
-            <output class="setup-buy-in-amount" id="online-player-count" for="online-players"></output>
-          </div>
-        </fieldset>
-        <fieldset class="setup-player-control">
-          <legend id="online-bot-label">Liczba botów</legend>
-          <div class="setup-slider-row">
-            <div class="raise-stepper">
-              <button class="raise-step" id="online-bots-less" type="button" aria-label="Zmniejsz liczbę botów">−</button>
-              <input id="online-bots" type="range" min="0" max="7" value="0" aria-labelledby="online-bot-label">
-              <button class="raise-step" id="online-bots-more" type="button" aria-label="Zwiększ liczbę botów">+</button>
+          </fieldset>
+          <fieldset class="setup-player-control">
+            <legend id="online-bot-label">Liczba botów</legend>
+            <div class="setup-slider-row">
+              <div class="raise-stepper">
+                <button class="raise-step" id="online-bots-less" type="button" aria-label="Zmniejsz liczbę botów">−</button>
+                <input id="online-bots" type="range" min="0" max="7" value="0" aria-labelledby="online-bot-label">
+                <button class="raise-step" id="online-bots-more" type="button" aria-label="Zwiększ liczbę botów">+</button>
+              </div>
+              <output class="setup-buy-in-amount" id="online-bot-count" for="online-bots"></output>
             </div>
-            <output class="setup-buy-in-amount" id="online-bot-count" for="online-bots"></output>
-          </div>
-        </fieldset>
-        <fieldset class="setup-player-control">
-          <legend id="online-turn-label">Czas na ruch</legend>
-          <div class="setup-slider-row">
-            <div class="raise-stepper">
-              <button class="raise-step" id="online-time-less" type="button" aria-label="Skróć czas na ruch">−</button>
-              <input id="online-turn-time" type="range" min="15" max="90" step="5" value="30" aria-labelledby="online-turn-label">
-              <button class="raise-step" id="online-time-more" type="button" aria-label="Wydłuż czas na ruch">+</button>
+          </fieldset>
+          <fieldset class="setup-player-control">
+            <legend id="online-turn-label">Czas na ruch</legend>
+            <div class="setup-slider-row">
+              <div class="raise-stepper">
+                <button class="raise-step" id="online-time-less" type="button" aria-label="Skróć czas na ruch">−</button>
+                <input id="online-turn-time" type="range" min="15" max="90" step="5" value="30" aria-labelledby="online-turn-label">
+                <button class="raise-step" id="online-time-more" type="button" aria-label="Wydłuż czas na ruch">+</button>
+              </div>
+              <output class="setup-buy-in-amount" id="online-turn-seconds" for="online-turn-time"></output>
             </div>
-            <output class="setup-buy-in-amount" id="online-turn-seconds" for="online-turn-time"></output>
-          </div>
-        </fieldset>
+          </fieldset>
+        </div>
       </div>
       <div class="setup-controls">
         <button class="zone-art-button zone-gold-button" id="online-submit" type="submit"></button>

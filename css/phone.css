@@ -548,6 +548,126 @@
     font-size: clamp(14px, calc(var(--phone-height) * .048), 22px);
   }
 
+  #online-dialog:has(#online-form:not([hidden]) #online-create-fields:not([hidden])) {
+    --online-control: clamp(23px, calc(var(--phone-height) * .072), 36px);
+    width: calc(var(--phone-width) - 12px);
+    height: calc(var(--phone-height) - 12px);
+    padding: clamp(8px, calc(var(--phone-height) * .044), 25px) clamp(15px, calc(var(--phone-width) * .039), 44px);
+    font-size: clamp(12px, calc(var(--phone-height) * .042), 20px);
+    line-height: 1.2;
+  }
+
+  #online-dialog[open]:has(#online-form:not([hidden]) #online-create-fields:not([hidden])) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #online-dialog:has(#online-form:not([hidden]) #online-create-fields:not([hidden])) .zone-dialog-heading {
+    flex: none;
+    margin-block-end: clamp(9px, calc(var(--phone-height) * .051), 27px);
+    padding-block-end: clamp(6px, calc(var(--phone-height) * .025), 14px);
+  }
+
+  #online-dialog:has(#online-form:not([hidden]) #online-create-fields:not([hidden])) h2 {
+    font-size: clamp(22px, calc(var(--phone-height) * .086), 42px);
+  }
+
+  #online-dialog:has(#online-form:not([hidden]) #online-create-fields:not([hidden])) .zone-close {
+    width: clamp(25px, calc(var(--phone-height) * .098), 44px);
+    height: clamp(25px, calc(var(--phone-height) * .098), 44px);
+  }
+
+  #online-form:has(#online-create-fields:not([hidden])):not([hidden]) {
+    display: grid;
+    flex: 1 0 auto;
+    grid-template: 'nick sliders' auto 'stakes sliders' 1fr 'actions actions' auto / minmax(0, 1fr) minmax(0, 1.08fr);
+    column-gap: clamp(12px, calc(var(--phone-width) * .021), 25px);
+    row-gap: clamp(8px, calc(var(--phone-height) * .04), 20px);
+  }
+
+  #online-create-fields:not([hidden]) {
+    display: contents;
+  }
+
+  #online-form:has(#online-create-fields:not([hidden])) .online-name-field {
+    grid-area: nick;
+  }
+
+  #online-form:has(#online-create-fields:not([hidden])) .online-name-field label {
+    display: block;
+    margin-block-end: clamp(4px, calc(var(--phone-height) * .023), 12px);
+    font-weight: 700;
+  }
+
+  #online-form:has(#online-create-fields:not([hidden])) #online-name {
+    min-height: clamp(30px, calc(var(--phone-height) * .105), 49px);
+    padding-block: 4px;
+  }
+
+  #online-create-fields:not([hidden]) fieldset {
+    margin: 0;
+  }
+
+  #online-create-fields > .setup-stakes {
+    grid-area: stakes;
+  }
+
+  #online-stakes .stake-choice {
+    min-height: clamp(28px, calc(var(--phone-height) * .107), 49px);
+    font-size: inherit;
+  }
+
+  .online-table-settings {
+    grid-area: sliders;
+    display: grid;
+    align-self: start;
+    gap: clamp(7px, calc(var(--phone-height) * .029), 16px);
+    padding: 0 0 4px clamp(12px, calc(var(--phone-width) * .025), 25px);
+    border-inline-start: 1px solid #2d7184;
+  }
+
+  .online-table-settings legend {
+    margin-block-end: 3px;
+    line-height: 1.16;
+  }
+
+  .online-table-settings .setup-slider-row {
+    grid-template-columns: minmax(0, 1fr) 4.8ch;
+    gap: clamp(8px, calc(var(--phone-width) * .023), 22px);
+  }
+
+  .online-table-settings .raise-stepper {
+    --raise-step-size: var(--online-control);
+    gap: clamp(3px, calc(var(--phone-width) * .012), 12px);
+  }
+
+  .online-table-settings :is(.raise-step, input[type='range']) {
+    min-height: var(--online-control);
+    height: var(--online-control);
+    padding-block: 0;
+  }
+
+  #online-form:has(#online-create-fields:not([hidden])) .setup-controls {
+    grid-area: actions;
+    justify-content: center;
+    gap: clamp(10px, calc(var(--phone-width) * .02), 24px);
+    margin: 0;
+  }
+
+  #online-form:has(#online-create-fields:not([hidden])) .setup-controls .zone-art-button {
+    min-height: clamp(31px, calc(var(--phone-height) * .127), 58px);
+    padding: 4px clamp(11px, calc(var(--phone-width) * .026), 35px);
+    font-size: clamp(14px, calc(var(--phone-height) * .049), 23px);
+  }
+
+  #online-form:has(#online-create-fields:not([hidden])) #online-submit {
+    min-width: clamp(138px, 26%, 249px);
+  }
+
+  #online-form:has(#online-create-fields:not([hidden])) #online-back {
+    min-width: clamp(82px, 16%, 155px);
+  }
+
   .zone-dialog-heading.profile-header {
     grid-template-columns: minmax(0, 1fr) auto auto;
     padding: clamp(5px, calc(var(--phone-height) * .019), 11px) clamp(10px, calc(var(--phone-width) * .025), 24px);
