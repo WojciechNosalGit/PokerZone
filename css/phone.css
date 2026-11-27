@@ -21,6 +21,10 @@
     --table-status-height: 16px;
   }
 
+  .wrap:has(.table-footer) {
+    max-width: 1520px;
+  }
+
   .topline {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -74,8 +78,10 @@
   }
 
   .table-panel:has(> .table-footer) {
-    --side-panel-width: clamp(142px, calc(var(--phone-width) * .26), 245px);
-    --side-panel-gutter: 4px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(142px, calc(var(--phone-width) * .26), 245px);
+    align-items: start;
+    gap: 4px;
   }
 
   .table-panel > .table-footer {
@@ -83,6 +89,7 @@
     --side-control-height: clamp(21px, calc(var(--phone-height) * .077), 34px);
     --side-action-font: clamp(13px, calc(var(--phone-height) * .047), 21px);
     --phone-bet-width: clamp(34px, calc(var(--phone-height) * .12), 50px);
+    width: 100%;
     padding-block-start: 4px;
     padding-inline-end: 4px;
   }
@@ -139,6 +146,7 @@
       'presets presets' auto / var(--phone-bet-width) minmax(0, 1fr);
     gap: var(--side-gap);
     block-size: calc(var(--side-table-height) - 8px);
+    margin: 0;
     padding: 7px 8px;
   }
 
@@ -146,6 +154,7 @@
     grid-area: 1 / 1 / -1 / -1;
     grid-template: subgrid / subgrid;
     align-items: stretch;
+    gap: var(--side-gap);
     margin: 0;
     font-size: clamp(10px, calc(var(--phone-height) * .033), 15px);
   }
@@ -211,10 +220,12 @@
     grid-template-columns: none;
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
+    gap: calc(var(--side-gap) * .75);
   }
 
   .table-footer .raise-presets button:nth-child(n) {
     min-width: 0;
+    min-height: var(--side-control-height);
     padding: 1px 2px;
     font-size: inherit;
     line-height: 1.1;
@@ -226,6 +237,28 @@
       'fold' minmax(0, 1fr)
       'call' minmax(0, 1fr)
       'raise' minmax(0, 1fr) / minmax(0, 1fr);
+    gap: var(--side-gap);
+  }
+
+  .table-footer .action-grid > .fold {
+    grid-area: fold;
+  }
+
+  .table-footer .action-grid > :is(.call, .action-replacement) {
+    grid-area: call;
+  }
+
+  .table-footer .action-grid > .raise {
+    grid-area: raise;
+  }
+
+  .table-footer .action-grid > button {
+    font-size: var(--side-action-font);
+  }
+
+  .table-footer .action-grid > .action-replacement {
+    inline-size: 100%;
+    font-size: min(var(--side-action-font), 19px);
   }
 
   .felt {
