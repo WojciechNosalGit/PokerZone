@@ -145,7 +145,8 @@
     grid-template:
       'wager actions' minmax(0, 1fr)
       'presets presets' auto / var(--phone-bet-width) minmax(0, 1fr);
-    gap: var(--side-gap);
+    row-gap: clamp(15px, calc(var(--phone-height) * .06), 26px);
+    column-gap: var(--side-gap);
     block-size: calc(var(--side-table-height) - 8px);
     margin: 0;
     padding: var(--side-padding);
@@ -155,7 +156,7 @@
     grid-area: 1 / 1 / -1 / -1;
     grid-template: subgrid / subgrid;
     align-items: stretch;
-    gap: var(--side-gap);
+    gap: inherit;
     margin: 0;
     font-size: clamp(10px, calc(var(--phone-height) * .033), 15px);
   }
