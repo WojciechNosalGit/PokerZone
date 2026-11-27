@@ -11,8 +11,8 @@
   .wrap {
     --table-status-height: 0px;
     --phone-header-height: clamp(27px, calc(var(--phone-height) * .085), 41px);
-    --phone-raise-height: clamp(22px, calc(var(--phone-height) * .065), 32px);
-    --phone-move-height: clamp(28px, calc(var(--phone-height) * .08), 40px);
+    --side-table-height: max(170px, calc(var(--phone-height) - var(--phone-safe-top) - var(--phone-safe-bottom)
+      - var(--phone-header-height) - var(--table-status-height) - 8px));
     padding: var(--phone-safe-top) var(--phone-safe-right)
       calc(16px + var(--phone-safe-bottom)) var(--phone-safe-left);
   }
@@ -74,14 +74,17 @@
   }
 
   .table-panel:has(> .table-footer) {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    --side-panel-width: clamp(142px, calc(var(--phone-width) * .26), 245px);
+    --side-panel-gutter: 4px;
   }
 
-  .table-footer {
-    width: 84%;
+  .table-panel > .table-footer {
+    --side-gap: clamp(4px, calc(var(--phone-height) * .014), 8px);
+    --side-control-height: clamp(21px, calc(var(--phone-height) * .077), 34px);
+    --side-action-height: clamp(27px, calc(var(--phone-height) * .115), 51px);
+    --side-action-font: clamp(13px, calc(var(--phone-height) * .047), 21px);
+    padding-block-start: 4px;
+    padding-inline-end: 4px;
   }
 
   .felt > .tutorial-coach {
@@ -127,57 +130,26 @@
   }
 
   .table-footer .controls {
-    margin: 0;
-    padding: 5px 9px;
+    padding: 7px 8px;
   }
 
   .table-footer .raise-controls {
-    grid-template: 'primary amount secondary presets' auto / minmax(0, 1fr) max-content minmax(0, 1fr) minmax(0, .9fr);
-    gap: 4px;
-    margin-bottom: 3px;
-    font-size: clamp(9px, calc(var(--phone-width) * .013), 13px);
+    font-size: clamp(10px, calc(var(--phone-height) * .033), 15px);
   }
 
   .table-footer .raise-stepper {
-    --raise-step-size: clamp(18px, calc(var(--phone-width) * .028), 31px);
     gap: 3px;
   }
 
   .table-footer .raise-stepper:has(output) {
-    grid-template-columns: var(--raise-step-size) minmax(0, 1fr) var(--raise-step-size) minmax(3ch, auto);
+    grid-template-columns: var(--raise-step-size) minmax(0, 1fr) var(--raise-step-size) max-content;
   }
 
-  .table-footer .raise-stepper input[type='range'] {
-    min-width: 0;
-    height: var(--phone-raise-height);
-  }
-
-  .table-footer .raise-presets {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 3px;
-  }
-
-  .table-footer .raise-presets #raiseBlindPreset {
-    inline-size: auto;
-  }
-
-  .table-footer .raise-step,
   .table-footer .raise-presets button:nth-child(n) {
-    min-height: var(--phone-raise-height);
     min-width: 0;
     padding: 1px 2px;
     font-size: inherit;
     line-height: 1.1;
-  }
-
-  .table-footer .action-grid {
-    grid-template-rows: var(--phone-move-height);
-    gap: 6px;
-  }
-
-  .table-footer .action-grid > :is(.fold, .call, .raise) {
-    padding: 2px 3px;
-    font-size: clamp(11px, calc(var(--phone-width) * .016), 14px);
   }
 
   .felt {
@@ -185,8 +157,7 @@
     --chip-width: 12px;
     width: 100%;
     min-width: 0;
-    height: max(132px, calc(var(--phone-height) - var(--phone-safe-top) - var(--phone-safe-bottom)
-      - var(--phone-header-height) - var(--phone-raise-height) - var(--phone-move-height) - 24px - var(--table-status-height)));
+    height: var(--side-table-height);
     border-radius: 0;
     background-image: url("../assets/images/poker-table-cyberpunk-mobile.webp");
     background-size: 100% 100%;
@@ -261,6 +232,10 @@
     --wager-y: 53%;
     --role-x: var(--wager-x);
     --role-y: 45%;
+  }
+
+  .felt .side-seat:not(.right-seat) {
+    --wager-x: 29%;
   }
 
   .felt .lower-seat {
