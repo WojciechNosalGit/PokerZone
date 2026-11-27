@@ -60,6 +60,14 @@ const pokerAvatars = (() => {
     element.classList.toggle('custom-avatar', uploaded);
     if (uploaded) element.style.setProperty('--profile-avatar', `url("${value}")`);
     else element.style.removeProperty('--profile-avatar');
+    if (element.classList.contains('avatar-portrait')) {
+      if (botPresetIds.has(value)) {
+        const portrait = new URL(`assets/images/portraits/${value}.webp`, document.baseURI);
+        element.style.setProperty('--avatar-portrait-image', `url("${portrait.href}")`);
+      } else {
+        element.style.removeProperty('--avatar-portrait-image');
+      }
+    }
   }
 
   function fillBotAvatars(players, excluded = []) {

@@ -72,5 +72,5 @@
   inset: 50% 4% auto;
   translate: 0 -50%;
   aspect-ratio: 1;
-  background: url("../assets/images/deck-cyberpunk.png") 50% 100% / 300% 200% no-repeat;
+  background: url("../assets/images/deck-cyberpunk.webp") center / 100% 100% no-repeat;
 }

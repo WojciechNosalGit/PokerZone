@@ -36,7 +36,7 @@ body {
   width: clamp(146px, 30vw, 345px);
   margin: 0;
   aspect-ratio: 2099 / 322;
-  background: url("../assets/images/pokerzone-logo.png") center / contain no-repeat;
+  background: url("../assets/images/pokerzone-logo.webp") center / contain no-repeat;
 }
 
 .topline .zone-brand {
@@ -492,6 +492,13 @@ dialog.zone-surface::after {
     linear-gradient(to bottom, transparent, #000 9% 85%, transparent);
   mask-composite: intersect;
   pointer-events: none;
+}
+
+.avatar-portrait[data-avatar-preset] {
+  --avatar-sheet: var(--avatar-portrait-image);
+  --avatar-sheet-size: 100% 100%;
+  --avatar-x: 50%;
+  --avatar-y: 50%;
 }
 
 .avatar-portrait[data-avatar-preset^="default-"] {

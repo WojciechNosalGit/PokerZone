@@ -29,6 +29,14 @@ function createPokerProfile(dialog, onSave) {
 
   let draftAvatar = '';
 
+  const avatarImages = typeof IntersectionObserver === 'function' ? new IntersectionObserver((entries, observer) => {
+    for (const { target, isIntersecting } of entries) {
+      if (!isIntersecting) continue;
+      target.dataset.avatarImages = '';
+      observer.unobserve(target);
+    }
+  }) : null;
+
   const rows = groups.map(({ id, label, presets }) => {
     const category = document.createElement('fieldset');
     category.className = 'profile-avatar-presets';
@@ -81,6 +89,8 @@ function createPokerProfile(dialog, onSave) {
     row.append(previous, options, next);
     category.append(title, row);
     gallery.append(category);
+    if (avatarImages) avatarImages.observe(category);
+    else category.dataset.avatarImages = '';
     return { options, choices, updateArrows };
   });
   const choices = rows.flatMap(row => row.choices);
