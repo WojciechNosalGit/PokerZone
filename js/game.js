@@ -61,6 +61,9 @@ const pokerGame = (() => {
     return { min: Math.min(minBuyInFor(bigBlind), funds), max: affordableBuyIn(bigBlind, funds, buyInFor(bigBlind)) };
   }
   const isBankroll = amount => Number.isSafeInteger(amount) && amount >= 0;
+  const validPayouts = (payouts, seatCount) => Array.isArray(payouts) && payouts.length <= seatCount
+    && payouts.every(payout => Array.isArray(payout) && payout.length === 2
+      && Number.isInteger(payout[0]) && payout[0] >= 0 && payout[0] < seatCount && isBankroll(payout[1]));
   const isTableClosed = phase => phase === 'gameover' || phase === 'left';
   const createId = () => crypto.randomUUID?.() ?? crypto.getRandomValues(new Uint32Array(4)).join('-');
 
@@ -148,6 +151,7 @@ const pokerGame = (() => {
       lastAggressor: null,
       logs: [],
       summary: '',
+      payouts: [],
       stats: { hands: 0, vpip: 0, pfr: 0, checks: 0, calls: 0, raises: 0, folds: 0 },
       heroHand: null,
       handVpip: false,
@@ -381,8 +385,9 @@ const pokerGame = (() => {
       }
       clearTableTimers();
       const { level, ...saved } = snapshot;
+      const payouts = validPayouts(snapshot.payouts, snapshot.players.length) ? snapshot.payouts : [];
       bankroll = restoredBankroll;
-      state = { ...saved, ...blinds, startingStack, heroBuyIns, rebuyTarget, tableBuyIns, phase, foldPending: false,
+      state = { ...saved, ...blinds, startingStack, heroBuyIns, rebuyTarget, tableBuyIns, phase, payouts, foldPending: false,
         dealing: false, runoutFrom: null, timer: null, epoch: (state?.epoch ?? 0) + 1 };
       const hero = human();
       // Starszy zapis trzymał wybrany awatar gracza osobno, w ustawieniach profilu.
@@ -451,6 +456,7 @@ const pokerGame = (() => {
       state.lastRaise = state.bigBlind;
       state.lastAggressor = null;
       state.summary = '';
+      state.payouts = [];
       state.handVpip = false;
       state.handPfr = false;
       state.foldPending = false;
@@ -741,6 +747,7 @@ const pokerGame = (() => {
       if (state.timer !== null) clearTimeout(state.timer);
       state.timer = null;
       state.runoutFrom = null;
+      state.payouts = [...winnings].filter(([, amount]) => amount > 0);
       const hero = human();
       state.foldPending = false;
       const gameOver = rules.onlineTable
@@ -783,7 +790,7 @@ const pokerGame = (() => {
           })
         }, winnings);
       }
-      onChange(state, { ...options, payouts: [...winnings].filter(([, amount]) => amount > 0) });
+      onChange(state, { ...options, payouts: state.payouts });
       continueTurn();
     }
 
@@ -851,5 +858,5 @@ const pokerGame = (() => {
   }
 
   return { createGame, formatAmount, displayName, positionsForHand, wagerKind, stakes, minPlayers, maxPlayers, defaultPlayers,
-    nextHandDelay, dealTiming, runoutTiming, buyInFor, buyInRange, startingBankroll };
+    nextHandDelay, dealTiming, runoutTiming, buyInFor, buyInRange, startingBankroll, validPayouts };
 })();

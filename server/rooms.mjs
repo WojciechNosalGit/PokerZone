@@ -34,7 +34,7 @@ function historyForSeat(state, record, winnings, seat, actions) {
 function viewForSeat(state, seat, room) {
   if (!state) return null;
   const { sessionId, handNo, phase, street, dealing, runoutFrom, currentBet, lastRaise, smallBlind, bigBlind,
-    board, potChips, summary } = state;
+    board, potChips, summary, payouts } = state;
   const seatId = id => seat === null ? id : relativeSeat(id, seat, state.players.length);
   const ordered = seat === null ? state.players : [...state.players.slice(seat), ...state.players.slice(0, seat)];
   const players = ordered.map(player => {
@@ -52,7 +52,8 @@ function viewForSeat(state, seat, room) {
     kind, text, action, playerName, playerId: playerId === undefined ? undefined : seatId(playerId)
   }));
   return { sessionId, handNo, phase, street, dealing, runoutFrom, currentBet, lastRaise, smallBlind, bigBlind,
-    board, potChips, summary, players, logs, actor: seatId(state.actor), dealer: seatId(state.dealer), foldPending: false };
+    board, potChips, summary, payouts: payouts.map(([id, amount]) => [seatId(id), amount]),
+    players, logs, actor: seatId(state.actor), dealer: seatId(state.dealer), foldPending: false };
 }
 
 export function attachRooms(server, { origins = [] } = {}) {

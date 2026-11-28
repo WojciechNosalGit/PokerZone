@@ -19,7 +19,7 @@ function createPokerOnline(dialog, { enter, preview, update, leave, onProfile, o
   const playersField = find('#online-players');
   const botsField = find('#online-bots');
   const timeField = find('#online-turn-time');
-  const { stakes, minPlayers, maxPlayers, defaultPlayers } = pokerGame;
+  const { stakes, minPlayers, maxPlayers, defaultPlayers, validPayouts } = pokerGame;
   const roomPattern = /^[A-F0-9]{10}$/;
   const version = 2;
   const chipValues = new Set([1, 5, 10, 25, 100, 500, 1000]);
@@ -87,6 +87,7 @@ function createPokerOnline(dialog, { enter, preview, update, leave, onProfile, o
     return typeof snapshot.sessionId === 'string' && ['betting', 'finished', 'gameover'].includes(snapshot.phase)
       && ['preflop', 'flop', 'turn', 'river', 'showdown'].includes(snapshot.street)
       && typeof snapshot.dealing === 'boolean' && typeof snapshot.summary === 'string'
+      && (snapshot.payouts === undefined || validPayouts(snapshot.payouts, count))
       && [snapshot.handNo, snapshot.currentBet, snapshot.lastRaise, snapshot.smallBlind, snapshot.bigBlind].every(whole)
       && snapshot.smallBlind > 0 && snapshot.bigBlind > 0
       && (snapshot.actor === -1 || validSeat(snapshot.actor, count)) && validSeat(snapshot.dealer, count)
@@ -302,8 +303,7 @@ function createPokerOnline(dialog, { enter, preview, update, leave, onProfile, o
         || !whole(humanCount) || !whole(botCount) || humanCount + botCount !== playerCount
         || typeof message.connected !== 'boolean' || !validSeat(membership.seat, playerCount)
         || !validTurnSeconds(turnSeconds) || (remainingMs !== null && (!whole(remainingMs) || remainingMs > turnSeconds * 1000))
-        || !Array.isArray(message.payouts) || !message.payouts.every(payout => Array.isArray(payout)
-          && validSeat(payout[0], playerCount) && whole(payout[1]))
+        || !validPayouts(message.payouts, playerCount)
         || (message.state !== null && (!message.state || !validSnapshot(message.state, playerCount)))) throw new Error('Invalid state');
     } else if (message?.type === 'history' && membership) {
       if (!Array.isArray(message.entries) || !message.entries.every(validHistoryEntry)) throw new Error('Invalid history');

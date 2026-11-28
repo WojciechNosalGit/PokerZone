@@ -112,6 +112,8 @@ test('private table masks cards, enforces turns, reconnects seats and pays out',
   assert.deepEqual(hostResult.state.board, guestResult.state.board);
   assert.deepEqual(hostResult.state.players[1].hand, guestResult.state.players[0].hand);
   assert.equal(hostResult.payouts.reduce((sum, [, amount]) => sum + amount, 0), 40);
+  assert.deepEqual(hostResult.state.payouts, hostResult.payouts);
+  assert.deepEqual(guestResult.state.payouts, guestResult.payouts);
   assert.equal(hostResult.state.players.reduce((sum, player) => sum + player.stack, 0), 4000);
   const [hostHistory, guestHistory] = await Promise.all([host.find(is('history')), guest.find(is('history'))]);
   assert.deepEqual(hostHistory.entries[0].hero.cards, hostTurn.state.players[0].hand);

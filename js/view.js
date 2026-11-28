@@ -268,7 +268,29 @@ const pokerView = (() => {
     for (const outline of button.querySelectorAll('.next-hand-outline path')) outline.setAttribute('d', path);
   }
 
-  function controlsHTML(state, { pot, min, outgoing, returning, returningWagers, tutorial, online }) {
+  function roundOutcomeSummaryHTML(state, payouts) {
+    const awards = (state.payouts ?? payouts).filter(([, amount]) => amount > 0).sort((a, b) => b[1] - a[1]);
+    if (!awards.length) {
+      return state.summary ? `<p class="round-outcome-summary" role="status">${escapeHTML(state.summary)}</p>` : '';
+    }
+    const showdown = state.street === 'showdown';
+    return `<div class="round-outcome-summary" role="status">
+     <ul class="round-awards" role="list" aria-label="Wynik rozdania">
+       ${awards.map(([id, amount]) => {
+         const winner = state.players[id];
+         const hand = showdown && winner.hand.every(Boolean) ? describeHand(winner.hand, state.board) : '';
+         const reason = showdown ? hand || 'Showdown' : 'Po foldzie';
+         return `<li class="round-award">
+           <strong class="round-award-winner"><span aria-hidden="true">🏆</span> ${escapeHTML(winner.name)}</strong>
+           <span class="round-award-hand"><span aria-hidden="true">${showdown ? '♠' : '↪'}</span> ${reason}</span>
+           <strong class="round-award-amount"><span class="bankroll-icon" aria-hidden="true"></span>+${money(amount)}<span class="zone-visually-hidden"> żetonów</span></strong>
+         </li>`;
+       }).join('')}
+     </ul>
+   </div>`;
+  }
+
+  function controlsHTML(state, { pot, min, outgoing, returning, returningWagers, tutorial, online, payouts }) {
     const { smallBlind, bigBlind } = state;
     const player = state.players[0];
     const connected = !online || online.connected;
@@ -336,7 +358,7 @@ const pokerView = (() => {
    <button class="call" id="call" ${canCall ? '' : 'disabled'} ${concealed}>${escapeHTML(callLabel)}</button>
    <button class="raise" id="raise" ${canRaise ? '' : 'disabled'} ${concealed}>${escapeHTML(raiseLabel)}</button>
    ${replacement ? `<div class="round-outcome">
-     ${state.summary ? `<p class="round-outcome-summary" role="status">${escapeHTML(state.summary)}</p>` : ''}
+     ${roundOutcomeSummaryHTML(state, payouts)}
      ${replacement}
    </div>` : ''}
   </div>`;
@@ -360,13 +382,19 @@ const pokerView = (() => {
     return `<strong>Twoja kolej.</strong> Wybierz ruch. Do sprawdzenia: <strong>${money(toCall)}</strong>`;
   }
 
-  function handStatusHTML(hand, board) {
+  function describeHand(hand, board, includeRanks = false) {
     const score = currentHandScore(hand, board);
     if (!score) return '';
     const [kind, high, second] = score;
+    if (kind === 8 && high === 14) return 'Poker królewski';
+    if (!includeRanks) return handNames[kind];
     const ranks = kind === 2 || kind === 6 ? `${rankLabel(high)} i ${rankLabel(second)}` : rankLabel(high);
-    const name = kind === 8 && high === 14 ? 'Poker królewski' : `${handNames[kind]} (${ranks})`;
-    return `<span class="table-corner hand-status">Układ <strong>${name}</strong></span>`;
+    return `${handNames[kind]} (${ranks})`;
+  }
+
+  function handStatusHTML(hand, board) {
+    const name = describeHand(hand, board, true);
+    return name ? `<span class="table-corner hand-status">Układ <strong>${name}</strong></span>` : '';
   }
 
   function createView(root, game, openProfile, { nextHand = game.startHand, replay, advanceOverview } = {}) {
@@ -512,7 +540,7 @@ const pokerView = (() => {
       selectRaise(target);
     }
 
-    return function render(state, { restored = false, tutorial, online } = {}) {
+    return function render(state, { restored = false, tutorial, online, payouts = [] } = {}) {
       cancelAnimationFrame(clockFrame);
       overviewResize?.disconnect();
       if (!state || state.phase === 'left') {
@@ -564,7 +592,7 @@ const pokerView = (() => {
       outlineResize?.disconnect();
       const seats = state.players.map(seat => tableSeatHTML(seat, state, !tutorial, online?.clock)).join('');
       const controls = controlsHTML(state, {
-        pot, min: game.minRaiseTo(), outgoing, returning: Boolean(departingOutcome), returningWagers, tutorial, online
+        pot, min: game.minRaiseTo(), outgoing, returning: Boolean(departingOutcome), returningWagers, tutorial, online, payouts
       });
       const extra = `
    <div class="table-corner table-status" role="status">${statusHTML(state, player, online)}</div>

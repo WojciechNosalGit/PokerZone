@@ -300,6 +300,67 @@
     pointer-events: auto;
   }
 
+  .round-awards {
+    display: grid;
+    gap: clamp(4px, calc(var(--phone-height) * .016), 6px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .round-award {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 6px;
+    padding: clamp(4px, calc(var(--phone-height) * .018), 6px)
+      clamp(6px, calc(var(--phone-height) * .024), 8px);
+    border: 1px solid #aa874761;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #233229, #0d2430 74%);
+    text-align: start;
+    line-height: 1.18;
+  }
+
+  .round-award-winner {
+    grid-column: 1 / -1;
+    color: #fff1d2;
+    font-size: clamp(14px, calc(var(--phone-height) * .05), 19px);
+  }
+
+  .round-award-winner > span {
+    margin-inline-end: 2px;
+  }
+
+  .round-award-hand {
+    color: #c9ece7;
+    font-size: clamp(10px, calc(var(--phone-height) * .035), 13px);
+  }
+
+  .round-award-hand > span {
+    color: var(--zone-cyan);
+  }
+
+  .round-award-amount {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #ffda88;
+    font-size: clamp(15px, calc(var(--phone-height) * .057), 21px);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .round-award-amount .bankroll-icon {
+    inline-size: 13px;
+    block-size: 10px;
+  }
+
+  .round-award-amount .bankroll-icon::before {
+    block-size: 6px;
+    box-shadow: 0 2px #b56e23, 0 3px #f5bc58, 0 4px #a66120;
+  }
+
   .table-footer .round-outcome > .action-replacement {
     flex-shrink: 0;
     inline-size: min(100%, 190px);
@@ -323,7 +384,7 @@
     }
 
     .round-transition .round-outcome-summary {
-      animation: action-enter 220ms 165ms ease-out both;
+      animation: action-enter 145ms 165ms ease-out both;
     }
 
     .round-outcome-outgoing .round-outcome-summary {
