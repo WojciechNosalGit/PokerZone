@@ -32,8 +32,7 @@
     min-height: var(--phone-header-height);
     margin: 0;
     padding: 2px clamp(12px, calc(var(--phone-width) * .038), 42px);
-    border-bottom: 1px solid #318b9e;
-    background: linear-gradient(110deg, #071f2c, #071620 65%, #0a1c28);
+    border-bottom: 1px solid transparent;
   }
 
   .topline .zone-brand {
