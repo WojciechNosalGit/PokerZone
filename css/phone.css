@@ -276,19 +276,39 @@
   .table-footer .round-outcome {
     position: absolute;
     z-index: 1;
-    inset: var(--side-padding);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--side-gap);
-    text-align: center;
+    inset: 1px;
+    isolation: isolate;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: clamp(7px, calc(var(--phone-height) * .03), 13px);
+    overflow: hidden;
+    padding: clamp(8px, calc(var(--phone-height) * .038), 16px);
+    background:
+      radial-gradient(ellipse at 14% 0%, #084d5b7d, transparent 58%),
+      radial-gradient(ellipse at 100% 100%, #4c214666, transparent 57%),
+      linear-gradient(145deg, #05232f, #061923 65%, #111528);
     pointer-events: none;
   }
 
+  .round-outcome::before {
+    content: "♠" / "";
+    position: absolute;
+    z-index: -1;
+    inset-block-start: 12%;
+    inset-inline-end: -.26em;
+    rotate: 14deg;
+    color: transparent;
+    background: linear-gradient(150deg, #196d7e91, #0d3748 58%, #0b2432);
+    background-clip: text;
+    font: 700 clamp(108px, calc(var(--phone-height) * .67), 254px) / .9 Georgia, serif;
+    -webkit-text-stroke: 1px #308b9b39;
+    opacity: .7;
+  }
+
   .round-outcome-summary {
-    display: block;
-    inline-size: 100%;
+    display: grid;
+    align-content: start;
+    container-type: inline-size;
     min-block-size: 0;
     margin: 0;
     overflow: auto;
@@ -298,6 +318,27 @@
     font-weight: 750;
     line-height: 1.4;
     pointer-events: auto;
+  }
+
+  .round-outcome-heading {
+    display: flex;
+    align-items: center;
+    gap: .42em;
+    margin: 0 0 clamp(4px, calc((var(--side-table-height) - 165px) * .09), 16px);
+    padding-block: 2px clamp(4px, calc(var(--phone-height) * .026), 11px);
+    background: linear-gradient(90deg, #96733a7c, #ffd576 32%, #edab4a95 67%, transparent)
+      left bottom / 100% 1px no-repeat;
+    color: #ffd46e;
+    font-size: clamp(12px, 8.8cqi, 19px);
+    font-weight: 900;
+    letter-spacing: .045em;
+    line-height: 1.1;
+    text-transform: uppercase;
+  }
+
+  .round-outcome-heading > span {
+    font-size: 1.45em;
+    line-height: 1;
   }
 
   .round-awards {
@@ -310,63 +351,125 @@
 
   .round-award {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 2px 6px;
-    padding: clamp(4px, calc(var(--phone-height) * .018), 6px)
-      clamp(6px, calc(var(--phone-height) * .024), 8px);
-    border: 1px solid #aa874761;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #233229, #0d2430 74%);
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(3px, calc(var(--phone-height) * .017), 7px);
     text-align: start;
-    line-height: 1.18;
+    line-height: 1.12;
   }
 
   .round-award-winner {
-    grid-column: 1 / -1;
-    color: #fff1d2;
-    font-size: clamp(14px, calc(var(--phone-height) * .05), 19px);
-  }
-
-  .round-award-winner > span {
-    margin-inline-end: 2px;
+    color: #fff4dd;
+    font-size: clamp(21px, min(21cqi, calc(var(--side-table-height) * .145)), 44px);
+    font-weight: 900;
   }
 
   .round-award-hand {
     color: #c9ece7;
-    font-size: clamp(10px, calc(var(--phone-height) * .035), 13px);
+    font-size: clamp(11px, 8.2cqi, 17px);
   }
 
   .round-award-hand > span {
     color: var(--zone-cyan);
+    margin-inline-end: 2px;
   }
 
   .round-award-amount {
+    --award-coin-size: clamp(20px, 18cqi, 40px);
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    color: #ffda88;
-    font-size: clamp(15px, calc(var(--phone-height) * .057), 21px);
+    gap: clamp(5px, 3.5cqi, 10px);
+    margin-block-start: clamp(4px, calc((var(--side-table-height) - 165px) * .095), 16px);
+    color: #ffc852;
+    font-size: clamp(24px, min(23cqi, calc(var(--side-table-height) * .185)), 49px);
+    font-weight: 900;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
   .round-award-amount .bankroll-icon {
-    inline-size: 13px;
-    block-size: 10px;
+    inline-size: var(--award-coin-size);
+    block-size: calc(var(--award-coin-size) * .81);
   }
 
   .round-award-amount .bankroll-icon::before {
-    block-size: 6px;
-    box-shadow: 0 2px #b56e23, 0 3px #f5bc58, 0 4px #a66120;
+    block-size: calc(100% - 3px);
+    border-color: #ffe4a4;
+    background:
+      radial-gradient(ellipse closest-side, #f7bc3b 0 65%, #c8871c 66% 72%, #ffd77a 73% 77%, transparent 78%),
+      repeating-conic-gradient(from -8deg, #fff6d6 0 13deg, #ffd472 13deg 21deg, #a56411 22deg 41deg, #e7ac42 42deg 45deg);
+    box-shadow: 0 2px #e6ac3e, 0 4px #9c5d13;
+  }
+
+  .round-outcome-multiple .round-outcome-heading {
+    margin-block-end: 4px;
+    padding-block-end: 4px;
+  }
+
+  .round-outcome-multiple .round-award {
+    grid-template: 'winner amount' auto 'hand hand' auto / minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: 2px 5px;
+    padding: 3px 5px;
+    border: 1px solid #aa874761;
+    border-radius: 6px;
+    background: #0a2934e6;
+  }
+
+  .round-outcome-multiple .round-award-winner {
+    grid-area: winner;
+    font-size: clamp(12px, 8.4cqi, 17px);
+  }
+
+  .round-outcome-multiple .round-award-hand {
+    grid-area: hand;
+    font-size: clamp(10px, 7cqi, 13px);
+  }
+
+  .round-outcome-multiple .round-award-amount {
+    --award-coin-size: clamp(13px, 10cqi, 19px);
+    grid-area: amount;
+    gap: 4px;
+    margin: 0;
+    font-size: clamp(14px, 10cqi, 20px);
   }
 
   .table-footer .round-outcome > .action-replacement {
-    flex-shrink: 0;
-    inline-size: min(100%, 190px);
-    min-block-size: clamp(34px, calc(var(--phone-height) * .13), 48px);
-    font-size: min(var(--side-action-font), 19px);
+    --next-hand-cut: 8px;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(3px, calc(var(--phone-height) * .015), 5px);
+    inline-size: 100%;
+    min-block-size: clamp(34px, calc(var(--phone-height) * .16), 66px);
+    padding: 4px clamp(5px, calc(var(--phone-height) * .02), 8px);
+    clip-path: polygon(var(--next-hand-cut) 0, calc(100% - var(--next-hand-cut)) 0, 100% var(--next-hand-cut),
+      100% calc(100% - var(--next-hand-cut)), calc(100% - var(--next-hand-cut)) 100%, var(--next-hand-cut) 100%,
+      0 calc(100% - var(--next-hand-cut)), 0 var(--next-hand-cut));
+    background: linear-gradient(160deg, #ffe793, #ffca50 58%, #e7a72d);
+    color: #10222a;
+    font-size: clamp(9px, calc(var(--phone-height) * .043), 19px);
+    font-weight: 900;
+    letter-spacing: -.02em;
+    text-transform: uppercase;
     pointer-events: auto;
+  }
+
+  .table-footer .round-outcome > .action-replacement:hover:enabled {
+    filter: brightness(1.08);
+  }
+
+  .table-footer .round-outcome > .action-replacement:focus-visible {
+    outline: 2px solid #12232b;
+    outline-offset: -4px;
+  }
+
+  .round-outcome .next-hand-track {
+    stroke: #b17619;
+  }
+
+  .round-outcome .next-hand-progress {
+    stroke: #fff4b9;
   }
 
   .table-footer .raise-controls:has(+ .action-grid #nextHand),
@@ -383,12 +486,17 @@
       animation: phone-wagers-enter 175ms 120ms ease-out both;
     }
 
-    .round-transition .round-outcome-summary {
-      animation: action-enter 145ms 165ms ease-out both;
+    .round-transition .round-outcome {
+      animation: phone-outcome-reveal 125ms 165ms ease-out both;
     }
 
-    .round-outcome-outgoing .round-outcome-summary {
-      animation: action-exit 120ms ease-in both;
+    .round-outcome-outgoing {
+      animation: phone-outcome-reveal 120ms ease-in reverse both;
+    }
+
+    @keyframes phone-outcome-reveal {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
     @keyframes phone-wagers-exit {

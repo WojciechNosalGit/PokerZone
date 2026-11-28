@@ -257,8 +257,9 @@ const pokerView = (() => {
     if (width <= 2 || height <= 2) return;
     const right = width - 1;
     const bottom = height - 1;
-    const radius = Math.min(8, (width - 2) / 2, (height - 2) / 2);
-    const corner = `A ${radius} ${radius} 0 0 1`;
+    const cut = Number.parseFloat(getComputedStyle(button).getPropertyValue('--next-hand-cut'));
+    const radius = Math.min(cut || 8, (width - 2) / 2, (height - 2) / 2);
+    const corner = cut ? 'L' : `A ${radius} ${radius} 0 0 1`;
     const path = [
       `M ${width / 2} 1 H ${right - radius} ${corner} ${right} ${1 + radius}`,
       `V ${bottom - radius} ${corner} ${right - radius} ${bottom}`,
@@ -274,14 +275,16 @@ const pokerView = (() => {
       return state.summary ? `<p class="round-outcome-summary" role="status">${escapeHTML(state.summary)}</p>` : '';
     }
     const showdown = state.street === 'showdown';
-    return `<div class="round-outcome-summary" role="status">
+    const multiple = awards.length > 1;
+    return `<div class="round-outcome-summary${multiple ? ' round-outcome-multiple' : ''}" role="status">
+     <h2 class="round-outcome-heading"><span aria-hidden="true">🏆</span> ${multiple ? 'Zwycięzcy' : 'Zwycięzca'}</h2>
      <ul class="round-awards" role="list" aria-label="Wynik rozdania">
        ${awards.map(([id, amount]) => {
          const winner = state.players[id];
          const hand = showdown && winner.hand.every(Boolean) ? describeHand(winner.hand, state.board) : '';
          const reason = showdown ? hand || 'Showdown' : 'Po foldzie';
          return `<li class="round-award">
-           <strong class="round-award-winner"><span aria-hidden="true">🏆</span> ${escapeHTML(winner.name)}</strong>
+           <strong class="round-award-winner">${escapeHTML(winner.name)}</strong>
            <span class="round-award-hand"><span aria-hidden="true">${showdown ? '♠' : '↪'}</span> ${reason}</span>
            <strong class="round-award-amount"><span class="bankroll-icon" aria-hidden="true"></span>+${money(amount)}<span class="zone-visually-hidden"> żetonów</span></strong>
          </li>`;
