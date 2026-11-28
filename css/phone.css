@@ -258,8 +258,10 @@
   .felt {
     --corner-inset: clamp(11px, calc(var(--phone-width) * .026), 32px);
     --chip-width: 12px;
+    --phone-chip-width: clamp(8px, 2cqi, 12px);
     --phone-board-card-width: clamp(22px, calc(var(--phone-height) * .09), 40px);
     --phone-board-gap: 4px;
+    --phone-avatar-overlap: 8px;
     width: 100%;
     min-width: 0;
     height: var(--side-table-height);
@@ -354,9 +356,13 @@
   }
 
   .felt .hero-seat {
+    --hero-plate-width: clamp(67px, 15cqi, 90px);
+    --hero-avatar-size: clamp(28px, calc(var(--phone-height) * .117), 52px);
+    --hero-wager-chip-width: clamp(8px, calc(var(--side-table-height) * .046), var(--phone-chip-width));
     --seat-y: 83%;
-    --wager-x: max(67%, calc(50% + 76px));
-    --wager-y: 68%;
+    --wager-x: calc(var(--seat-x) + (var(--hero-plate-width) + var(--hero-avatar-size)) / 2
+      - var(--phone-avatar-overlap) - 1px);
+    --wager-y: calc(68% + clamp(0px, calc((215px - var(--side-table-height)) * .05), 1.5px));
     --role-x: 39%;
     --role-y: 67%;
   }
@@ -364,14 +370,14 @@
   .felt .bet-spot {
     --pocket-width: clamp(17px, calc(var(--phone-height) * .064), 30px);
     --pocket-height: clamp(22px, calc(var(--phone-height) * .083), 40px);
-    --avatar-overlap: 8px;
+    --avatar-overlap: var(--phone-avatar-overlap);
     width: clamp(54px, 13.5cqi, 78px);
   }
 
   .felt .hero-seat .bet-spot {
     --pocket-width: clamp(21px, calc(var(--phone-height) * .083), 36px);
     --pocket-height: clamp(28px, calc(var(--phone-height) * .106), 48px);
-    width: clamp(67px, 15cqi, 90px);
+    width: var(--hero-plate-width);
   }
 
   .felt .seat-info {
@@ -381,7 +387,14 @@
   }
 
   .felt .hero-seat .seat-info {
-    --avatar-size: clamp(28px, calc(var(--phone-height) * .117), 52px);
+    --avatar-size: var(--hero-avatar-size);
+  }
+
+  .felt .hero-seat .bet-spot.has-bet .avatar-action {
+    --hero-action-gap: clamp(0px, calc((var(--side-table-height) - 230px) * .075), 4px);
+    inset-block-end: calc(50% + var(--avatar-size) / 2 + var(--hero-action-gap)
+      + var(--hero-wager-chip-width) - var(--phone-chip-width));
+    padding-block: calc(1px + var(--hero-action-gap) / 2);
   }
 
   .felt .hero-profile-label {
@@ -454,13 +467,29 @@
   }
 
   .felt .chip-scatter {
-    --chip-width: clamp(8px, 2cqi, 12px);
+    --chip-width: var(--phone-chip-width);
     --chip-rim-width: 1px;
   }
 
   .felt .spot-chips {
     min-height: 18px;
     font-size: 10px;
+  }
+
+  .felt .hero-seat .spot-chips:not(.all-in-wager) {
+    position: relative;
+    padding-block-end: calc(1lh + 1px);
+  }
+
+  .felt .hero-seat .spot-chips:not(.all-in-wager) .chip-scatter {
+    --chip-width: var(--hero-wager-chip-width);
+  }
+
+  .felt .hero-seat .spot-chips:not(.all-in-wager) > strong {
+    position: absolute;
+    inset-block-start: calc((100% - 1lh - 1px) / 2);
+    inset-inline-start: calc(100% + 4px);
+    translate: 0 -50%;
   }
 
   .felt-center {
