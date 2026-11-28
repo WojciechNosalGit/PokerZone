@@ -1458,7 +1458,7 @@ dialog.zone-surface::after {
   grid-template-rows: 40px;
 }
 
-.table-footer .action-grid > button {
+.table-footer .action-grid button {
   min-height: 0;
 }
 

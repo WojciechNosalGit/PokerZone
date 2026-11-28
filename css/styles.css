@@ -676,7 +676,7 @@ button:disabled {
   gap: 9px;
 }
 
-.action-grid > button {
+.action-grid button {
   grid-row: 1;
   min-inline-size: 0;
 }
@@ -707,7 +707,15 @@ button:disabled {
   opacity: var(--action-opacity);
 }
 
-.action-grid > .action-replacement {
+.round-outcome {
+  display: contents;
+}
+
+.round-outcome-summary {
+  display: none;
+}
+
+.action-grid .action-replacement {
   grid-column: 1 / -1;
   justify-self: center;
   inline-size: min(100%, 190px);
@@ -721,7 +729,7 @@ button:disabled {
   pointer-events: none;
 }
 
-.action-grid > .next-hand-outgoing:disabled {
+.action-grid .next-hand-outgoing:disabled {
   --action-opacity: 1;
   pointer-events: none;
 }
@@ -735,11 +743,11 @@ button:disabled {
     animation: action-exit 165ms ease-in both;
   }
 
-  .action-grid.round-start > .next-hand-outgoing {
+  .action-grid.round-start .next-hand-outgoing {
     animation: action-exit 120ms ease-in both;
   }
 
-  .action-grid.round-transition > .action-replacement {
+  .action-grid.round-transition .action-replacement {
     animation: action-enter 220ms 165ms ease-out both;
   }
 

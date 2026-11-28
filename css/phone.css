@@ -238,7 +238,7 @@
     grid-area: fold;
   }
 
-  .table-footer .action-grid > :is(.call, .action-replacement) {
+  .table-footer .action-grid > .call {
     grid-area: call;
   }
 
@@ -250,9 +250,72 @@
     font-size: var(--side-action-font);
   }
 
-  .table-footer .action-grid > .action-replacement {
+  .table-footer .round-outcome {
+    position: absolute;
+    z-index: 1;
+    inset: var(--side-padding);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--side-gap);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .round-outcome-summary {
+    display: block;
     inline-size: 100%;
+    min-block-size: 0;
+    margin: 0;
+    overflow: auto;
+    overflow-wrap: anywhere;
+    color: #f7ead2;
+    font-size: clamp(12px, calc(var(--phone-height) * .045), 17px);
+    font-weight: 750;
+    line-height: 1.4;
+    pointer-events: auto;
+  }
+
+  .table-footer .round-outcome > .action-replacement {
+    flex-shrink: 0;
+    inline-size: min(100%, 190px);
+    min-block-size: clamp(34px, calc(var(--phone-height) * .13), 48px);
     font-size: min(var(--side-action-font), 19px);
+    pointer-events: auto;
+  }
+
+  .table-footer .raise-controls:has(+ .action-grid #nextHand),
+  .table-panel:has(.round-outcome-summary) .table-status .result-title {
+    visibility: hidden;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .table-footer .raise-controls:has(+ .round-transition #nextHand) {
+      animation: phone-wagers-exit 165ms ease-in both;
+    }
+
+    .table-footer .round-wagers-enter {
+      animation: phone-wagers-enter 175ms 120ms ease-out both;
+    }
+
+    .round-transition .round-outcome-summary {
+      animation: action-enter 220ms 165ms ease-out both;
+    }
+
+    .round-outcome-outgoing .round-outcome-summary {
+      animation: action-exit 120ms ease-in both;
+    }
+
+    @keyframes phone-wagers-exit {
+      from { visibility: visible; opacity: 1; transform: none; }
+      to { visibility: hidden; opacity: 0; transform: translateX(-36px); }
+    }
+
+    @keyframes phone-wagers-enter {
+      from { visibility: hidden; opacity: 0; transform: translateX(-36px); }
+      to { visibility: visible; opacity: 1; transform: none; }
+    }
   }
 
   .felt {

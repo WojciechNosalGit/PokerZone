@@ -681,7 +681,7 @@ const pokerGame = (() => {
         player.bet = 0;
         player.betChips = [];
       }
-      state.summary = `${displayName(winner)} wygrywa ${formatAmount(amount)} żetonów (pozostali spasowali).`;
+      state.summary = `${winner.name} wygrywa ${formatAmount(amount)} żetonów (pozostali spasowali).`;
       addLog({ kind: 'result', text: state.summary });
       finishHand('fold', new Map([[winner.id, amount]]));
     }
@@ -731,7 +731,7 @@ const pokerGame = (() => {
 
       const items = [...winnings.entries()].filter(([, amount]) => amount > 0).sort((a, b) => b[1] - a[1]);
       state.summary = items.map(([id, amount]) =>
-        `${displayName(state.players[id])}: +${formatAmount(amount)} (${handNames[scores.get(id)[0]]})`
+        `${state.players[id].name}: +${formatAmount(amount)} (${handNames[scores.get(id)[0]]})`
       ).join(' · ') || 'Remis';
       addLog({ kind: 'result', text: 'Showdown · ' + state.summary });
       finishHand('showdown', winnings, options);
