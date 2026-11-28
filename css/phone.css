@@ -161,7 +161,8 @@
     font-size: clamp(10px, calc(var(--phone-height) * .033), 15px);
   }
 
-  .table-footer :is(.raise-stepper-secondary, .raise-stepper .raise-step, #raiseBlindPreset) {
+  .table-footer :is(.raise-stepper-secondary, .raise-stepper .raise-step),
+  .table-footer .raise-presets > button:has(+ #raiseBlindPreset) {
     display: none;
   }
 
@@ -169,8 +170,7 @@
     grid-area: 1 / 1;
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
-    margin-block: clamp(24px, calc(var(--phone-height) * .075), 33px)
-      calc(var(--phone-bet-width) + var(--side-gap) * .6);
+    margin-block: clamp(26px, calc(var(--phone-height) * .09), 38px) calc(var(--side-gap) * .5);
   }
 
   .table-footer #raiseSlider {
@@ -193,33 +193,13 @@
     margin: 0;
   }
 
-  .raise-controls > :is(#raiseTo, #raiseBlindIndicator) {
+  .raise-controls > #raiseTo {
     grid-area: 1 / 1;
     justify-self: center;
-  }
-
-  .raise-controls > #raiseTo {
     align-self: start;
     inline-size: auto;
-    font-size: clamp(12px, calc(var(--phone-height) * .041), 17px);
-  }
-
-  .raise-controls > #raiseBlindIndicator {
-    display: grid;
-    align-self: end;
-    place-items: center;
-    inline-size: var(--phone-bet-width);
-    aspect-ratio: 1;
-    border: 1px solid #bb8a3d;
-    border-radius: 50%;
-    background:
-      radial-gradient(circle closest-side, #362717 0 60%, #875b26 61% 64%, #e6b85c 66% 69%,
-        transparent 71% 92%, #b68943 94% 96%, #54371a 99%),
-      repeating-conic-gradient(from -8deg, #fff1c0 0 11deg, #e8b85a 11deg 18deg,
-        #815519 19deg 37deg, #d9a550 39deg 45deg);
-    color: #ffe5a2;
-    font-size: clamp(8px, calc(var(--phone-height) * .029), 10.5px);
-    letter-spacing: -.02em;
+    font-size: clamp(14px, calc(var(--phone-height) * .05), 20px);
+    line-height: 1.2;
   }
 
   .table-footer .raise-presets {
@@ -230,6 +210,10 @@
     gap: calc(var(--side-gap) * .75);
     padding-block-start: calc(var(--side-gap) * .55);
     border-block-start: 1px solid #2b5867;
+  }
+
+  .table-footer .raise-presets #raiseBlindPreset {
+    inline-size: auto;
   }
 
   .table-footer .raise-presets button:nth-child(n) {
@@ -371,7 +355,7 @@
 
   .felt .hero-seat {
     --seat-y: 83%;
-    --wager-x: 70%;
+    --wager-x: max(67%, calc(50% + 76px));
     --wager-y: 68%;
     --role-x: 39%;
     --role-y: 67%;

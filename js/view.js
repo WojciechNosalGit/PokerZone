@@ -327,7 +327,6 @@ const pokerView = (() => {
     return `<div class="raise-controls" role="group" aria-label="Wysokość stawki">
    ${stepperHTML('', 'Stawka w żetonach', 'o jeden small blind', chipRange)}
    <output id="raiseTo" for="raiseSlider raiseSliderSecondary raiseLess raiseMore raiseLessSecondary raiseMoreSecondary" aria-label="Stawka w żetonach">${escapeHTML(amount)}</output>
-   <output id="raiseBlindIndicator" for="raiseSlider" aria-label="Stawka w big blindach">${formatBigBlinds(customBlinds)}</output>
    ${stepperHTML('Secondary', 'Stawka w big blindach', 'w big blindach', blindRange)}
    <div class="raise-presets">
     ${presets.map(([label, amount], index) => `<button type="button" ${preflop && index === 2 ? 'id="raiseBlindPreset"' : ''} data-raise-to="${amount}" aria-pressed="false" ${canRaise && amount >= lowerLimit && amount <= max ? '' : 'disabled'}>${label}</button>`).join('')}
@@ -447,7 +446,6 @@ const pokerView = (() => {
       const output = find('#raiseTo');
       const blindPreset = find('#raiseBlindPreset');
       const blindValue = find('#raiseBlindValue');
-      const blindIndicator = find('#raiseBlindIndicator');
       const decrease = find('#raiseLess');
       const increase = find('#raiseMore');
       const blindDecrease = find('#raiseLessSecondary');
@@ -466,7 +464,6 @@ const pokerView = (() => {
         blindSlider.value = String(blinds);
         blindSlider.setAttribute('aria-valuetext', blindLabel);
         output.value = formatted;
-        blindIndicator.value = blindLabel;
         raise.textContent = wagerName + ' ' + formatted;
         decrease.disabled = blindDecrease.disabled = target <= min;
         increase.disabled = blindIncrease.disabled = target >= max;
