@@ -89,6 +89,8 @@
     --side-control-height: clamp(21px, calc(var(--phone-height) * .077), 34px);
     --side-action-font: clamp(13px, calc(var(--phone-height) * .047), 21px);
     --phone-bet-width: clamp(34px, calc(var(--phone-height) * .13), 49px);
+    --phone-bet-label-size: clamp(14px, calc(var(--phone-height) * .05), 20px);
+    --phone-bet-step-height: clamp(28px, calc(var(--side-table-height) * .13), 44px);
     width: 100%;
     padding-block-start: 4px;
     padding-inline-end: 4px;
@@ -160,19 +162,41 @@
     font-size: clamp(10px, calc(var(--phone-height) * .033), 15px);
   }
 
-  .table-footer :is(.raise-stepper-secondary, .raise-stepper .raise-step),
+  .table-footer .raise-stepper-secondary,
   .table-footer .raise-presets > button:has(+ #raiseBlindPreset) {
     display: none;
   }
 
   .table-footer .raise-stepper:not(.raise-stepper-secondary) {
     grid-area: 1 / 1;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template:
+      'increase' var(--phone-bet-step-height)
+      'slider' minmax(0, 1fr)
+      'decrease' var(--phone-bet-step-height) / minmax(0, 1fr);
+    gap: clamp(3px, calc(var(--side-table-height) * .012), 5px);
     justify-items: center;
-    margin-block: clamp(26px, calc(var(--phone-height) * .09), 38px) calc(var(--side-gap) * .5);
+    margin-block: calc(var(--phone-bet-label-size) * 1.2 + 3px)
+      clamp(-6px, calc((var(--side-table-height) - 245px) * .1), 1px);
+  }
+
+  .table-footer :is(#raiseMore, #raiseLess) {
+    align-self: stretch;
+    inline-size: min(100%, 44px);
+    min-height: 0;
+    font-size: clamp(17px, calc(var(--phone-height) * .05), 23px);
+    touch-action: manipulation;
+  }
+
+  .table-footer #raiseMore {
+    grid-area: increase;
+  }
+
+  .table-footer #raiseLess {
+    grid-area: decrease;
   }
 
   .table-footer #raiseSlider {
+    grid-area: slider;
     appearance: auto;
     writing-mode: vertical-lr;
     direction: rtl;
@@ -197,7 +221,7 @@
     justify-self: center;
     align-self: start;
     inline-size: auto;
-    font-size: clamp(14px, calc(var(--phone-height) * .05), 20px);
+    font-size: var(--phone-bet-label-size);
     line-height: 1.2;
   }
 
